@@ -1,12 +1,48 @@
 import sys
 import requests
+import spacy
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
     QLineEdit, QTabWidget, QGroupBox
 )
 from datetime import datetime
+from gensim.corpora.dictionary import Dictionary
+from gensim.models import LdaModel
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import nltk
 
+nltk.download('punkt')
+nltk.download('stopwords')
+nlp = spacy.load("en_core_web_md")
+
+TOPIC_LABELS = {
+    "Politics": ["law", "president", "government", "election", "policy", "vote", "martial"],
+    "Economy": ["economy", "market", "stock", "business", "trade", "finance", "budget"],
+    "Sports": ["game", "team", "match", "player", "sport", "win", "league"],
+    "Technology": ["tech", "software", "internet", "data", "AI", "cloud", "cybersecurity"],
+    "Health": ["health", "medicine", "hospital", "doctor", "vaccine", "pandemic", "treatment"],
+    "Environment": ["climate", "pollution", "sustainability", "wildlife", "nature", "renewable"],
+    "Entertainment": ["movie", "music", "show", "celebrity", "actor", "festival", "album"],
+    "Science": ["research", "study", "experiment", "innovation", "genetics", "discovery"]
+}
+
+def categorize_topic_dynamic(keywords):
+        """Categorize a topic using semantic similarity with spaCy."""
+        best_label = "Miscellaneous"  # Default label if no match is found
+        highest_similarity = 0
+        
+        for label, keyword_list in TOPIC_LABELS.items():
+            label_doc = nlp(" ".join(keyword_list))  # Combine label keywords into a single text
+            for keyword in keywords:
+                keyword_doc = nlp(keyword)
+                similarity = label_doc.similarity(keyword_doc)
+                if similarity > highest_similarity:
+                    highest_similarity = similarity
+                    best_label = label
+        return best_label
+    
 # Scraping functions
 def scrape_foxnews():
     url = "https://www.foxnews.com/"
@@ -164,9 +200,53 @@ class MainWindow(QMainWindow):
         """Placeholder for Visualize Network functionality."""
         self.results_display.append("<b>Visualizing Network...</b> (Feature not yet implemented)")
 
+
     def analyze_topics(self):
-        """Placeholder for Analyze Topics functionality."""
-        self.results_display.append("<b>Analyzing Topics...</b> (Feature not yet implemented)")
+        """Analyze topics from aggregated articles using LDA and dynamic matching."""
+        if not self.scraped_content:
+            self.results_display.append("<b>Error:</b> No content to analyze. Scrape websites first.")
+            return
+
+        self.results_display.append("<b>Analyzing Topics...</b>")
+        
+        # Combine all articles
+        combined_articles = []
+        for articles in self.scraped_content.values():
+            combined_articles.extend(articles)
+
+        if not combined_articles:
+            self.results_display.append("<b>No articles found for topic analysis.</b>")
+            return
+
+        # Preprocess articles
+        stop_words = set(stopwords.words('english'))
+        processed_articles = []
+        for article in combined_articles:
+            tokens = word_tokenize(article.lower())  # Tokenize and lowercase
+            tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+            processed_articles.append(tokens)
+
+        # Create Dictionary and Corpus
+        dictionary = Dictionary(processed_articles)
+        corpus = [dictionary.doc2bow(text) for text in processed_articles]
+
+        # Train LDA model
+        try:
+            lda_model = LdaModel(corpus, num_topics=5, id2word=dictionary, passes=15)
+        except Exception as e:
+            self.results_display.append(f"<b>Error during topic modeling:</b> {str(e)}")
+            return
+
+        # Extract topics and assign labels
+        topics = lda_model.print_topics(num_words=5)
+        self.results_display.append("<b>Topics and Labels:</b>")
+        for idx, topic in topics:
+            # Extract keywords from the topic
+            keywords = [word.split('*"')[1].replace('"', '') for word in topic.split(' + ')]
+            label = categorize_topic_dynamic(keywords)  # Map topic to label dynamically
+            self.results_display.append(f"Topic {idx + 1} ({label}): {topic}")
+
+        self.results_display.append("\n<b>Topic analysis and dynamic categorization complete.</b>")
 
     def generate_report(self):
         """Placeholder for Generate Report functionality."""
