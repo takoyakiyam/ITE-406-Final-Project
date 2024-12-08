@@ -1,25 +1,26 @@
 import sys
 import requests
 from bs4 import BeautifulSoup
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
+    QLineEdit, QTabWidget, QGroupBox
+)
 from datetime import datetime
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog, QLineEdit, QHBoxLayout)
 
 # Scraping functions
 def scrape_foxnews():
     url = "https://www.foxnews.com/"
-    response = requests.get(url, timeout=10)  # Timeout to prevent hanging
-    response.raise_for_status()  # Raise HTTPError for bad responses
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
-    headlines = [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
-    return headlines
+    return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
 
 def scrape_philstar():
     url = "https://www.philstar.com/"
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
-    headlines = [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
-    return headlines
+    return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
 
 def scrape_manilaTimes():
     url = "https://www.manilatimes.net"
@@ -37,214 +38,82 @@ def scrape_rappler():
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
-    headlines = [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
-    return headlines
+    return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
 
-# Pop-up dialog to display scraped content with search functionality
-class ContentDialog(QDialog):
-    def __init__(self, title, content, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.resize(600, 400)
-        self.content = content
-
-        # Layouts
-        main_layout = QVBoxLayout(self)
-        search_layout = QHBoxLayout()
-
-        # Search bar
-        self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Enter keyword to search...")
-        search_layout.addWidget(self.search_input)
-
-        # Search button
-        self.search_button = QPushButton("Search", self)
-        self.search_button.clicked.connect(self.search_content)
-        search_layout.addWidget(self.search_button)
-
-        # Display area
-        self.text_display = QTextEdit(self)
-        self.text_display.setReadOnly(True)
-        self.text_display.setText("\n".join(self.content))
-
-        # Add layouts and widgets
-        main_layout.addLayout(search_layout)
-        main_layout.addWidget(self.text_display)
-
-    def search_content(self):
-        """Search for a keyword and refresh content to show only matching lines."""
-        keyword = self.search_input.text().strip()
-        if not keyword:
-            # If search bar is empty, display all content
-            self.text_display.setText("\n".join(self.content))
-            return
-
-        # Filter matching lines
-        matching_lines = [
-            line for line in self.content if keyword.lower() in line.lower()
-        ]
-
-        if matching_lines:
-            self.text_display.setText("\n".join(matching_lines))
-        else:
-            self.text_display.setText("No matching content found.")
-            
-class ContentDialog(QDialog):
-    def __init__(self, title, aggregated_content, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.resize(600, 400)
-        self.aggregated_content = aggregated_content
-
-        # Layouts
-        main_layout = QVBoxLayout(self)
-        filter_layout = QHBoxLayout()
-        search_layout = QHBoxLayout()
-
-        # Source filter checkboxes
-        self.source_checkboxes = {}
-        for source in self.aggregated_content.keys():
-            checkbox = QCheckBox(source)
-            checkbox.setChecked(True)
-            checkbox.stateChanged.connect(self.update_display)
-            filter_layout.addWidget(checkbox)
-            self.source_checkboxes[source] = checkbox
-
-        # Search bar
-        self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Enter keyword to search...")
-        search_layout.addWidget(self.search_input)
-
-        # Search button
-        self.search_button = QPushButton("Search", self)
-        self.search_button.clicked.connect(self.search_content)
-        search_layout.addWidget(self.search_button)
-
-        # Display area
-        self.text_display = QTextEdit(self)
-        self.text_display.setReadOnly(True)
-        self.update_display()
-
-        # Add layouts and widgets
-        main_layout.addLayout(filter_layout)
-        main_layout.addLayout(search_layout)
-        main_layout.addWidget(self.text_display)
-
-    def update_display(self):
-        """Update the displayed content based on selected sources."""
-        selected_sources = [source for source, checkbox in self.source_checkboxes.items() if checkbox.isChecked()]
-        filtered_content = []
-
-        for source in selected_sources:
-            for article in self.aggregated_content[source]:
-                filtered_content.append(f"[{source.upper()}] {article}")
-
-        self.text_display.setText("\n".join(filtered_content) if filtered_content else "No articles available.")
-
-    def search_content(self):
-        """Search for a keyword and refresh content to show only matching lines."""
-        keyword = self.search_input.text().strip()
-        if not keyword:
-            self.update_display()
-            return
-
-        selected_sources = [source for source, checkbox in self.source_checkboxes.items() if checkbox.isChecked()]
-        matching_lines = []
-
-        for source in selected_sources:
-            for article in self.aggregated_content[source]:
-                if keyword.lower() in article.lower():
-                    matching_lines.append(f"[{source.upper()}] {article}")
-
-        self.text_display.setText("\n".join(matching_lines) if matching_lines else "No matching content found.")
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Fine-Tunable News Scraper")
+        self.setWindowTitle("News Scraper with Improved Layout")
+        self.resize(1000, 700)
+
+        # Main central widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget)
 
-        # Add a label
-        self.label = QLabel("Select websites to scrape:")
-        self.layout.addWidget(self.label)
+        # Top label
+        self.label = QLabel("<h3>Select Websites to Scrape</h3>")
+        self.main_layout.addWidget(self.label)
 
-        # Add checkboxes for website selection
+        # Website selection area
+        self.website_groupbox = QGroupBox("Websites")
+        self.website_layout = QVBoxLayout()
         self.checkbox_foxnews = QCheckBox("Fox News")
         self.checkbox_philstar = QCheckBox("Philstar")
         self.checkbox_manilaTimes = QCheckBox("Manila Times")
         self.checkbox_rappler = QCheckBox("Rappler")
+        self.website_layout.addWidget(self.checkbox_foxnews)
+        self.website_layout.addWidget(self.checkbox_philstar)
+        self.website_layout.addWidget(self.checkbox_manilaTimes)
+        self.website_layout.addWidget(self.checkbox_rappler)
+        self.website_groupbox.setLayout(self.website_layout)
+        self.main_layout.addWidget(self.website_groupbox)
 
-        # Add checkboxes to layout
-        self.layout.addWidget(self.checkbox_foxnews)
-        self.layout.addWidget(self.checkbox_philstar)
-        self.layout.addWidget(self.checkbox_manilaTimes)
-        self.layout.addWidget(self.checkbox_rappler)
-
-        # Add a button to toggle checkbox selection
+        # Action buttons
+        self.action_buttons_layout = QHBoxLayout()
         self.check_all_button = QPushButton("Select All Websites")
         self.check_all_button.clicked.connect(self.toggle_select_all)
-        self.layout.addWidget(self.check_all_button)
-
-        # Add a button to start scraping
         self.scrape_button = QPushButton("Scrape Selected Websites")
         self.scrape_button.clicked.connect(self.scrape_websites)
-        self.layout.addWidget(self.scrape_button)
-
-        # Add a button to view aggregated articles
         self.view_aggregated_button = QPushButton("View Aggregated Articles")
         self.view_aggregated_button.clicked.connect(self.view_aggregated_content)
-        self.layout.addWidget(self.view_aggregated_button)
+        self.action_buttons_layout.addWidget(self.check_all_button)
+        self.action_buttons_layout.addWidget(self.scrape_button)
+        self.action_buttons_layout.addWidget(self.view_aggregated_button)
+        self.main_layout.addLayout(self.action_buttons_layout)
 
-        # Add a text area to display results
+        # Results display
         self.results_display = QTextEdit()
         self.results_display.setReadOnly(True)
-        self.layout.addWidget(self.results_display)
+        self.results_display.setPlaceholderText("Scraped results will appear here...")
+        self.main_layout.addWidget(self.results_display, stretch=2)
 
-        # Start in fullscreen mode
-        self.showFullScreen()
-
-        # Track the toggle state of the "Select All Websites" button
+        # State tracking
         self.all_selected = False
-
-        # Storage for scraped content
         self.scraped_content = {}
 
     def toggle_select_all(self):
-        """Toggle between selecting and unselecting all checkboxes."""
+        """Toggle all checkboxes."""
         self.all_selected = not self.all_selected
-        new_state = self.all_selected
-
-        # Set the state of all checkboxes
-        self.checkbox_foxnews.setChecked(new_state)
-        self.checkbox_philstar.setChecked(new_state)
-        self.checkbox_manilaTimes.setChecked(new_state)
-        self.checkbox_rappler.setChecked(new_state)
-
-        # Update the button label
-        self.check_all_button.setText("Unselect All Websites" if new_state else "Select All Websites")
+        state = self.all_selected
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler]:
+            checkbox.setChecked(state)
+        self.check_all_button.setText("Unselect All Websites" if state else "Select All Websites")
 
     def scrape_websites(self):
         """Scrape selected websites and display results."""
-        # Clear the results display before starting
         self.results_display.clear()
-
-        # Check if at least one website is selected
         if not any([
             self.checkbox_foxnews.isChecked(),
             self.checkbox_philstar.isChecked(),
             self.checkbox_manilaTimes.isChecked(),
             self.checkbox_rappler.isChecked()
         ]):
-            self.results_display.append("<b>Error:</b> No website selected for scraping. Please select at least one website.")
+            self.results_display.append("<b>Error:</b> No website selected. Please choose a website.")
             return
 
-        # Get the current date in a human-readable format
-        current_date = datetime.now().strftime("These are the articles for %B %d, %Y.")
-        self.results_display.append(f"<b>{current_date}</b>\n")
-
-        # Mapping of checkboxes to scraping functions
+        self.scraped_content = {}
         websites = [
             ("Fox News", self.checkbox_foxnews.isChecked(), scrape_foxnews),
             ("Philstar", self.checkbox_philstar.isChecked(), scrape_philstar),
@@ -252,30 +121,119 @@ class MainWindow(QMainWindow):
             ("Rappler", self.checkbox_rappler.isChecked(), scrape_rappler),
         ]
 
-        # Reset scraped content storage
-        self.scraped_content = {}
+        self.results_display.append(f"<b>Scraping articles...</b>")
 
-        # Scrape selected websites
-        for name, is_checked, scrape_function in websites:
+        for name, is_checked, scraper in websites:
             if is_checked:
                 try:
-                    self.scraped_content[name] = scrape_function()
+                    self.scraped_content[name] = scraper()
                     self.results_display.append(f"{name}: {len(self.scraped_content[name])} articles scraped.")
-                except requests.exceptions.RequestException as e:
-                    self.results_display.append(f"{name}: Failed to scrape (Network Error: {e}).")
                 except Exception as e:
-                    self.results_display.append(f"{name}: Failed to scrape (Error: {e}).")
+                    self.results_display.append(f"{name}: Failed to scrape. ({str(e)})")
 
-        self.results_display.append("\nScraping complete.\n")
+        self.results_display.append("\n<b>Scraping complete.</b>")
 
     def view_aggregated_content(self):
-        """Display all aggregated content in a dialog."""
+        """Display aggregated articles."""
         if not self.scraped_content:
-            self.results_display.append("<b>Error:</b> No content to display. Please scrape websites first.")
+            self.results_display.append("<b>Error:</b> No content to display. Scrape websites first.")
             return
 
         dialog = ContentDialog("Aggregated Articles", self.scraped_content, self)
         dialog.exec_()
+
+class ContentDialog(QDialog):
+    def __init__(self, title, aggregated_content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.resize(800, 600)
+
+        # Main layout
+        self.aggregated_content = aggregated_content
+        self.layout = QVBoxLayout(self)
+
+        # Search bar
+        search_layout = QHBoxLayout()
+        self.search_field = QLineEdit()
+        self.search_field.setPlaceholderText("Type to search articles...")
+        self.search_button = QPushButton("🔍")
+        self.search_button.clicked.connect(self.perform_search)
+        self.clear_button = QPushButton("🔄")
+        self.clear_button.clicked.connect(self.clear_search)
+        search_layout.addWidget(self.search_field)
+        search_layout.addWidget(self.search_button)
+        search_layout.addWidget(self.clear_button)
+        self.layout.addLayout(search_layout)
+
+        # Tab view for content
+        self.tabs = QTabWidget()
+
+        # Create "All Articles" tab first
+        self.all_articles_tab = QWidget()
+        self.all_articles_layout = QVBoxLayout(self.all_articles_tab)
+        self.all_articles_display = QTextEdit()
+        self.all_articles_display.setReadOnly(True)
+
+        # Combine all articles into one list
+        self.combined_articles = []
+        for articles in aggregated_content.values():
+            self.combined_articles.extend(articles)
+
+        # Display all articles in the "All Articles" tab
+        self.all_articles_display.setText("\n".join(self.combined_articles))
+        self.all_articles_layout.addWidget(self.all_articles_display)
+
+        # Add "All Articles" tab as the first tab
+        self.tabs.addTab(self.all_articles_tab, "All Articles")
+
+        # Add source-specific tabs
+        self.source_displays = {}
+        for source, articles in aggregated_content.items():
+            tab = QWidget()
+            tab_layout = QVBoxLayout(tab)
+            text_display = QTextEdit()
+            text_display.setReadOnly(True)
+            text_display.setText("\n".join(articles))
+            tab_layout.addWidget(text_display)
+            self.tabs.addTab(tab, source)
+            self.source_displays[source] = text_display
+
+        # Add tabs to layout
+        self.layout.addWidget(self.tabs)
+
+    def perform_search(self):
+        """Search articles and update the display."""
+        query = self.search_field.text().strip().lower()
+        if not query:
+            return
+
+        # Determine current tab
+        current_tab_index = self.tabs.currentIndex()
+        current_tab_name = self.tabs.tabText(current_tab_index)
+
+        if current_tab_name == "All Articles":
+            # Filter all articles
+            filtered = [article for article in self.combined_articles if query in article.lower()]
+            self.all_articles_display.setText("\n".join(filtered))
+        else:
+            # Filter articles for the specific source
+            source_articles = self.aggregated_content.get(current_tab_name, [])
+            filtered = [article for article in source_articles if query in article.lower()]
+            if current_tab_name in self.source_displays:
+                self.source_displays[current_tab_name].setText("\n".join(filtered))
+
+    def clear_search(self):
+        """Clear search and reset all tabs to original content."""
+        self.search_field.clear()
+
+        # Reset "All Articles" tab
+        self.all_articles_display.setText("\n".join(self.combined_articles))
+
+        # Reset each source-specific tab
+        for source, articles in self.aggregated_content.items():
+            if source in self.source_displays:
+                self.source_displays[source].setText("\n".join(articles))
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
