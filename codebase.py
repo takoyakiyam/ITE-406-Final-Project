@@ -1,6 +1,7 @@
 import sys
 import requests
 import json
+import networkx as nx
 import spacy
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
@@ -8,6 +9,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
     QLineEdit, QTabWidget, QGroupBox, QComboBox
 )
+from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from datetime import datetime
 from gensim.corpora.dictionary import Dictionary
@@ -193,9 +195,14 @@ class MainWindow(QMainWindow):
         self.results_display.append("\n<b>Scraping complete.</b>")
 
     def visualize_network(self):
-        """Placeholder for Visualize Network functionality."""
-        self.results_display.append("<b>Visualizing Network...</b> (Feature not yet implemented)")
+        """Visualize the network of common articles across news sources."""
+        if not self.scraped_content:
+            self.results_display.append("<b>Error:</b> No content to visualize. Scrape websites first.")
+            return
 
+        # Open the VisualizeNetworkDialog
+        dialog = VisualizeNetworkDialog(self.scraped_content, self)
+        dialog.exec_()
 
     def analyze_topics(self):
         """Analyze topics from aggregated articles using LDA and dynamic matching."""
@@ -330,7 +337,7 @@ class TopicAnalysisDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Topic Analysis")
-        self.resize(900, 700)
+        self.resize(900, 750)
 
         # Save scraped content
         self.scraped_content = scraped_content
@@ -338,14 +345,26 @@ class TopicAnalysisDialog(QDialog):
         # Create a vertical layout
         self.layout = QVBoxLayout(self)
 
+        # Add header and description
+        date = datetime.now().strftime("%B %d, %Y")  # Current date
+        header = QLabel(f"<h2>Topic Analysis for {date}</h2>")
+        description = QLabel(
+            "<p><i>This analysis uses <b>Latent Dirichlet Allocation (LDA)</b> to extract topics from articles. "
+            "Please note that the topic distribution is an approximation and may not be fully accurate.</i></p>"
+        )
+        header.setAlignment(Qt.AlignCenter)
+        description.setWordWrap(True)
+
+        # Add header and description to the layout
+        self.layout.addWidget(header)
+        self.layout.addWidget(description)
+
         # Dropdown for selecting the news source
+        self.layout.addWidget(QLabel("Select News Source:"))  # Proper label for combobox
         self.source_dropdown = QComboBox()
         self.source_dropdown.addItem("All Sources")
         self.source_dropdown.addItems(self.scraped_content.keys())
         self.source_dropdown.currentTextChanged.connect(self.update_graph)
-
-        # Add dropdown to layout
-        self.layout.addWidget(QLabel("Select News Source:"))
         self.layout.addWidget(self.source_dropdown)
 
         # Placeholder for graph
@@ -419,6 +438,157 @@ class TopicAnalysisDialog(QDialog):
         self.ax.set_title(f"Top Topics for {selected_source}")
         self.ax.invert_yaxis()  # Higher weights appear at the top
         self.canvas.draw()
+
+class VisualizeNetworkDialog(QDialog):
+    def __init__(self, scraped_content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Visualize Network")
+        self.resize(1200, 900)
+
+        # Save scraped content
+        self.scraped_content = scraped_content
+
+        # Main layout for the dialog
+        self.layout = QVBoxLayout(self)
+
+        # Placeholder for the network graph
+        self.figure, self.ax = plt.subplots(figsize=(10, 8))
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+
+        # Generate and display the network graph
+        self.G, self.pos, self.labels, self.node_types = self.generate_network_graph()
+
+        # Connect hover event for article nodes
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
+
+class VisualizeNetworkDialog(QDialog):
+    def __init__(self, scraped_content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Visualize Network")
+        self.resize(900, 900)
+
+        # Save scraped content
+        self.scraped_content = scraped_content
+
+        # Main layout for the dialog
+        self.layout = QVBoxLayout(self)
+
+        # Add directions and labels at the top
+        self.directions = QLabel(
+            "<h3>News Articles Network</h3>"
+            "<p>Below shows the common news articles between news sources.</p>"
+            "<p><b style='color:blue;'>BLUE NODES</b>: Represent news sources such as Fox News, Philstar, etc.</p>"
+            "<p><b style='color:green;'>GREEN NODES</b>: Represent common news articles shared between sources.</p>"
+            "<p>Hover on the corresponding <b style='color:green;'>green nodes</b> to see the full title.</p>"
+            "<p><i>Some common articles may be disregarded due to extreme variations on wordings and formattings.</i></p>"
+        )
+        self.directions.setWordWrap(True)
+        self.layout.addWidget(self.directions)
+
+        # Placeholder for the network graph
+        self.figure, self.ax = plt.subplots(figsize=(10, 8))
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+
+        # Generate and display the network graph
+        self.G, self.pos, self.labels, self.node_types = self.generate_network_graph()
+
+        # Connect hover event for article nodes
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
+
+    def generate_network_graph(self):
+        """Create and display a network graph of common articles."""
+        if not self.scraped_content:
+            self.ax.clear()
+            self.ax.set_title("No data available to visualize.")
+            self.canvas.draw()
+            return None, None, None, None
+
+        # Build the network graph
+        G = nx.Graph()
+        sources = list(self.scraped_content.keys())
+        labels = {}  # Dictionary to map nodes to labels for hover
+        node_types = {}  # Dictionary to distinguish between sources and articles
+
+        # Add nodes for each source
+        for source in sources:
+            G.add_node(source, type='source', color='lightblue')
+            labels[source] = source  # Use source name as its label
+            node_types[source] = "source"
+
+        # Compare articles and add common articles as nodes and edges
+        for i, source1 in enumerate(sources):
+            for source2 in sources[i + 1:]:
+                for article1 in self.scraped_content[source1]:
+                    for article2 in self.scraped_content[source2]:
+                        if self.has_significant_word_overlap(article1, article2):
+                            truncated_title = self.truncate_text(article1)
+                            G.add_node(truncated_title, type='article', color='lightgreen')
+                            G.add_edge(source1, truncated_title)
+                            G.add_edge(source2, truncated_title)
+                            labels[truncated_title] = article1  # Store full article title for hover
+                            node_types[truncated_title] = "article"
+
+        # Visualization: Extract node colors
+        node_colors = [G.nodes[node].get('color', 'gray') for node in G.nodes]
+        pos = nx.spring_layout(G, k=0.5, seed=42)  # Layout for graph
+
+        # Clear the previous graph
+        self.ax.clear()
+        self.ax.set_title("News Articles Network")
+
+        # Separate labels for sources (displayed) and articles (hover only)
+        source_labels = {node: node for node in G.nodes if node_types.get(node) == "source"}
+
+        # Draw the graph
+        nx.draw_networkx_nodes(
+            G, pos, nodelist=G.nodes, ax=self.ax,
+            node_color=node_colors, node_size=600
+        )
+        nx.draw_networkx_edges(G, pos, ax=self.ax, edge_color="lightgray")
+
+        # Draw labels for source nodes only
+        nx.draw_networkx_labels(G, pos, labels=source_labels, font_size=10, font_weight="bold", ax=self.ax)
+
+        # Add legend for blue and green nodes
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor='lightblue', edgecolor='black', label='News Sources (Blue Nodes)'),
+            Patch(facecolor='lightgreen', edgecolor='black', label='Shared Articles (Green Nodes)')
+        ]
+        self.ax.legend(handles=legend_elements, loc="best")
+
+        # Render the canvas
+        self.canvas.draw()
+        return G, pos, labels, node_types
+
+    def has_significant_word_overlap(self, title1, title2):
+        """Check if two article titles have at least 4 words in common."""
+        words1 = set(title1.lower().split())
+        words2 = set(title2.lower().split())
+        common_words = words1 & words2
+        return len(common_words) >= 4
+
+    def truncate_text(self, text, max_length=50):
+        """Truncate long text to fit within the graph."""
+        return text if len(text) <= max_length else text[:max_length] + "..."
+
+    def on_hover(self, event):
+        """Show the full title of article nodes when hovered."""
+        if event.inaxes == self.ax:
+            for node, (x, y) in self.pos.items():
+                if abs(x - event.xdata) < 0.05 and abs(y - event.ydata) < 0.05:
+                    node_type = self.node_types.get(node)
+                    if node_type == "article":
+                        # Display the full article title in the plot's title
+                        tooltip = self.labels.get(node, "")
+                        self.ax.set_title(f"{tooltip}")
+                        self.canvas.draw()
+                        return  # Exit after showing the first match
+            # Reset the title if no match is found
+            self.ax.set_title("News Articles Network")
+            self.canvas.draw()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
