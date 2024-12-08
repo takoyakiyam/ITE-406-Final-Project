@@ -6,8 +6,9 @@ import time
 import networkx as nx
 import spacy
 import requests
+import numpy as np
 import matplotlib.pyplot as plt
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from transformers import pipeline
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
@@ -498,6 +499,9 @@ class MainWindow(QMainWindow):
         dialog = ContentDialog("Aggregated Articles", self.scraped_content, self)
         dialog.exec_()
 
+from transformers import pipeline
+from PyQt5.QtGui import QFont
+
 class ContentDialog(QDialog):
     def __init__(self, title, aggregated_content, parent=None):
         super().__init__(parent)
@@ -508,8 +512,8 @@ class ContentDialog(QDialog):
         self.aggregated_content = aggregated_content
         self.layout = QVBoxLayout(self)
 
-        # Initialize sentiment analyzer
-        self.sentiment_analyzer = SentimentIntensityAnalyzer()
+        # Initialize lightweight sentiment analyzer
+        self.sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
         # Search bar
         search_layout = QHBoxLayout()
@@ -526,7 +530,7 @@ class ContentDialog(QDialog):
 
         # Description for color coding
         description_label = QLabel(
-            "<b>Sentiment Analysis Color Coding:</b> "
+            "<b>Color Coding:</b> "
             "<span style='color: #006400;'>Green</span>: Positive, "
             "<span style='color: red;'>Red</span>: Negative, "
             "<span style='color: gray;'>Gray</span>: Neutral"
@@ -569,14 +573,14 @@ class ContentDialog(QDialog):
         self.layout.addWidget(self.tabs)
 
     def analyze_sentiment(self, text):
-        """Analyze the sentiment of a given text using VADER."""
-        sentiment_score = self.sentiment_analyzer.polarity_scores(text)['compound']
-        if sentiment_score > 0.05:
+        """Analyze the sentiment of a given text using DistilBERT."""
+        result = self.sentiment_analyzer(text[:512])  # Truncate to DistilBERT max token length
+        label = result[0]['label']  # Positive or Negative
+        if label == "POSITIVE":
             return "positive"
-        elif sentiment_score < -0.05:
+        elif label == "NEGATIVE":
             return "negative"
-        else:
-            return "neutral"
+        return "neutral"
 
     def populate_list_widget(self, list_widget, articles):
         """Populate a QListWidget with a list of articles, color-code them, and make text bold."""
@@ -637,6 +641,7 @@ class ContentDialog(QDialog):
         for source, articles in self.aggregated_content.items():
             if source in self.source_displays:
                 self.populate_list_widget(self.source_displays[source], articles)
+
 
 class TopicAnalysisDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
@@ -782,12 +787,14 @@ class VisualizeNetworkDialog(QDialog):
         # Add directions and labels at the top
         self.directions = QLabel(
             "<h3>News Articles Network</h3>"
-            "<p>Below shows the common news articles between news sources.</p>"
-            "<p><b style='color:blue;'>⬤ Blue Nodes</b>: Represent news sources such as Fox News, Philstar, etc.</p>"
-            "<p><b style='color:green;'>⬤ Green Nodes</b>: Represent common news articles shared between sources.</p>"
-            "<p>Hover on the corresponding <b style='color:green;'>green nodes</b> to see the full title.</p>"
-            "<p><i>Some common articles may be disregarded due to extreme variations on wordings and formattings.</i></p>"
+            "<p>This visualization shows the shared news articles between different sources.</p>"
+            "<p><b>Source Node Colors:</b></p>"
+            "<p><u><b style='color:#CCCCCC;'>⬤ Grey Nodes</b></u>: Represent shared news articles between two or more sources.</p>"
+            "<p>Edges are color-coded to match their respective sources.</p>"
+            "<p><i>Hover over a node to view the full title of an article.</i></p>"
         )
+
+
         self.directions.setWordWrap(True)
         self.layout.addWidget(self.directions)
 
@@ -803,7 +810,7 @@ class VisualizeNetworkDialog(QDialog):
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
 
     def generate_network_graph(self):
-        """Create and display a network graph of common articles."""
+        """Create and display a network graph of common articles with improved spacing."""
         if not self.scraped_content:
             self.ax.clear()
             self.ax.set_title("No data available to visualize.")
@@ -816,64 +823,69 @@ class VisualizeNetworkDialog(QDialog):
         labels = {}  # Dictionary to map nodes to labels for hover
         node_types = {}  # Dictionary to distinguish between sources and articles
 
+        # Assign distinct pastel colors to sources
+        source_colors = {
+            source: color for source, color in zip(
+                sources, ['#FF9999', '#99CCFF', '#99FF99', '#FFCC99', '#FF99FF', '#CC9966']
+            )
+        }
+
         # Add nodes for each source
         for source in sources:
-            G.add_node(source, type='source', color='lightblue')
+            G.add_node(source, type='source', color=source_colors[source])
             labels[source] = source  # Use source name as its label
             node_types[source] = "source"
 
-        # Compare articles and add common articles as nodes and edges
+        # Compare articles and add shared articles as nodes and edges
         for i, source1 in enumerate(sources):
             for source2 in sources[i + 1:]:
                 for article1 in self.scraped_content[source1]:
                     for article2 in self.scraped_content[source2]:
                         if self.has_significant_word_overlap(article1, article2):
                             truncated_title = self.truncate_text(article1)
-                            G.add_node(truncated_title, type='article', color='lightgreen')
-                            G.add_edge(source1, truncated_title)
-                            G.add_edge(source2, truncated_title)
+                            G.add_node(truncated_title, type='article', color='#CCCCCC')  # Light grey for shared articles
+                            G.add_edge(source1, truncated_title, color=source_colors[source1])
+                            G.add_edge(source2, truncated_title, color=source_colors[source2])
                             labels[truncated_title] = article1  # Store full article title for hover
                             node_types[truncated_title] = "article"
 
-        # Visualization: Extract node colors
+        # Visualization: Extract node and edge colors
         node_colors = [G.nodes[node].get('color', 'gray') for node in G.nodes]
-        pos = nx.spring_layout(G, k=0.5, seed=42)  # Layout for graph
+        edge_colors = [G[u][v]['color'] for u, v in G.edges]
+
+        # Use spring layout with high repulsion for better spacing
+        pos = nx.spring_layout(G, k=3.0, seed=42)  # Increased `k` for more spacing
 
         # Clear the previous graph
         self.ax.clear()
         self.ax.set_title("News Articles Network")
 
-        # Separate labels for sources (displayed) and articles (hover only)
-        source_labels = {node: node for node in G.nodes if node_types.get(node) == "source"}
-
-        # Draw the graph
+        # Draw nodes
         nx.draw_networkx_nodes(
             G, pos, nodelist=G.nodes, ax=self.ax,
-            node_color=node_colors, node_size=600
+            node_color=node_colors, node_size=700
         )
-        nx.draw_networkx_edges(G, pos, ax=self.ax, edge_color="lightgray")
 
-        # Draw labels for source nodes only
+        # Draw edges with color matching their sources
+        for (u, v), color in zip(G.edges, edge_colors):
+            x = [pos[u][0], pos[v][0]]
+            y = [pos[u][1], pos[v][1]]
+            self.ax.plot(x, y, color=color, linewidth=2.5)
+
+        # Draw labels for source nodes
+        source_labels = {node: node for node in G.nodes if node_types.get(node) == "source"}
         nx.draw_networkx_labels(G, pos, labels=source_labels, font_size=10, font_weight="bold", ax=self.ax)
-
-        # Add legend for blue and green nodes
-        from matplotlib.patches import Patch
-        legend_elements = [
-            Patch(facecolor='lightblue', edgecolor='black', label='News Sources (Blue Nodes)'),
-            Patch(facecolor='lightgreen', edgecolor='black', label='Shared Articles (Green Nodes)')
-        ]
-        self.ax.legend(handles=legend_elements, loc="best")
 
         # Render the canvas
         self.canvas.draw()
         return G, pos, labels, node_types
 
     def has_significant_word_overlap(self, title1, title2):
-        """Check if two article titles have at least 4 words in common."""
+        """Check if two article titles have at least 5 words in common."""
         words1 = set(title1.lower().split())
         words2 = set(title2.lower().split())
         common_words = words1 & words2
-        return len(common_words) >= 4
+        return len(common_words) >= 5
 
     def truncate_text(self, text, max_length=50):
         """Truncate long text to fit within the graph."""
