@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
-    QLineEdit, QTabWidget, QGroupBox, QComboBox
+    QLineEdit, QTabWidget, QGroupBox, QComboBox, QToolTip, QMessageBox
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from datetime import datetime
 from gensim.corpora.dictionary import Dictionary
@@ -77,7 +78,8 @@ def scrape_rappler():
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("News Scraper with Improved Layout")
+        QToolTip.setFont(QFont("Arial", 12))
+        self.setWindowTitle("NewsNet")
         self.resize(700, 700)
 
         # Main central widget and layout
@@ -443,7 +445,7 @@ class VisualizeNetworkDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Visualize Network")
-        self.resize(1200, 900)
+        self.resize(900, 900)
 
         # Save scraped content
         self.scraped_content = scraped_content
@@ -478,8 +480,8 @@ class VisualizeNetworkDialog(QDialog):
         self.directions = QLabel(
             "<h3>News Articles Network</h3>"
             "<p>Below shows the common news articles between news sources.</p>"
-            "<p><b style='color:blue;'>BLUE NODES</b>: Represent news sources such as Fox News, Philstar, etc.</p>"
-            "<p><b style='color:green;'>GREEN NODES</b>: Represent common news articles shared between sources.</p>"
+            "<p><b style='color:blue;'>⬤ Blue Nodes</b>: Represent news sources such as Fox News, Philstar, etc.</p>"
+            "<p><b style='color:green;'>⬤ Green Nodes</b>: Represent common news articles shared between sources.</p>"
             "<p>Hover on the corresponding <b style='color:green;'>green nodes</b> to see the full title.</p>"
             "<p><i>Some common articles may be disregarded due to extreme variations on wordings and formattings.</i></p>"
         )
@@ -575,20 +577,41 @@ class VisualizeNetworkDialog(QDialog):
         return text if len(text) <= max_length else text[:max_length] + "..."
 
     def on_hover(self, event):
-        """Show the full title of article nodes when hovered."""
+        """Display the full title of article nodes near the hovered node on the graph."""
         if event.inaxes == self.ax:
+            # Remove only dynamic hover labels
+            for text in self.ax.texts:
+                if getattr(text, "is_hover_label", False):  # Only remove hover labels
+                    text.remove()
+
             for node, (x, y) in self.pos.items():
-                if abs(x - event.xdata) < 0.05 and abs(y - event.ydata) < 0.05:
+                # Map the node's position from data coordinates to display coordinates
+                screen_x, screen_y = self.ax.transData.transform((x, y))
+                canvas_width = self.canvas.width()  # Get the width of the canvas in pixels
+
+                # Check proximity in pixels (tuned to 10-pixel radius)
+                if abs(screen_x - event.x) < 10 and abs(screen_y - event.y) < 10:
                     node_type = self.node_types.get(node)
                     if node_type == "article":
-                        # Display the full article title in the plot's title
-                        tooltip = self.labels.get(node, "")
-                        self.ax.set_title(f"{tooltip}")
-                        self.canvas.draw()
-                        return  # Exit after showing the first match
-            # Reset the title if no match is found
-            self.ax.set_title("News Articles Network")
-            self.canvas.draw()
+                        full_title = self.labels.get(node, "")
+
+                        # Determine the label's horizontal position based on node's location
+                        if screen_x > canvas_width / 2:  # If node is on the right half
+                            label_x = x - 0.02  # Position label to the left
+                        else:  # If node is on the left half
+                            label_x = x + 0.02  # Position label to the right
+
+                        # Add a dynamic label near the hovered node
+                        hover_label = self.ax.text(
+                            label_x, y, full_title,
+                            fontsize=8, color="black", weight="bold", zorder=10
+                        )
+                        hover_label.is_hover_label = True  # Mark this label as a hover label
+                        self.canvas.draw_idle()
+                        return
+
+            # Redraw the canvas to clear hover labels if no node is hovered
+            self.canvas.draw_idle()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
