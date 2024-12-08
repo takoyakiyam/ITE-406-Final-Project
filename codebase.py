@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
-    QLineEdit, QTabWidget, QGroupBox, QComboBox, QToolTip, QFileDialog
+    QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -58,6 +58,14 @@ def scrape_philstar():
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Remove the <div> elements with specified ids
+    for unwanted_id in ["forex", "newsletter-signup_content"]:
+        unwanted_div = soup.find("div", id=unwanted_id)
+        if unwanted_div:
+            unwanted_div.decompose()  # Remove the element from the DOM tree
+
+    # Extract and return the text of all <h2> elements
     return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
 
 def scrape_manilaTimes():
@@ -81,21 +89,70 @@ def scrape_rappler():
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        QToolTip.setFont(QFont("Arial", 12))
         self.setWindowTitle("NewsNet")
-        self.resize(700, 700)
+        self.resize(800, 800)
 
         # Main central widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
+        
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f5f5f5;
+            }
+            QLabel {
+                font-size: 16px;
+                color: #333333;
+            }
+            QGroupBox {
+                border: 2px solid #cccccc;
+                border-radius: 10px;
+                padding: 10px;
+                margin-top: 15px;
+                background-color: #ffffff;
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #0078d7;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 12px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #005a9e;
+            }
+            QTextEdit {
+                border: 1px solid #cccccc;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+            }
+            QCheckBox {
+                font-size: 14px;
+                padding: 5px;
+            }
+            QComboBox {
+                font-size: 14px;
+                padding: 5px;
+            }
+        """)
 
-        # Greeting and date
-        self.greeting_label = QLabel("<h2>Greetings, User!</h2>")
+        # Header Section
+        header_layout = QVBoxLayout()
+        self.greeting_label = QLabel("<h1>Welcome to NewsNet</h1>")
+        self.greeting_label.setAlignment(Qt.AlignCenter)
+        self.greeting_label.setStyleSheet("font-size: 24px; color: #0078d7;")
+        header_layout.addWidget(self.greeting_label)
+        
         current_date = datetime.now().strftime("%B %d, %Y")
-        self.date_label = QLabel(f"Today's Date is <b> {current_date}</b>")
-        self.main_layout.addWidget(self.greeting_label)
-        self.main_layout.addWidget(self.date_label)
+        self.date_label = QLabel(f"Today's Date: <b>{current_date}</b>")
+        self.date_label.setAlignment(Qt.AlignCenter)
+        header_layout.addWidget(self.date_label)
+        self.main_layout.addLayout(header_layout)
 
         # Top label
         self.label = QLabel("<h3>Select Websites to Scrape</h3>")
@@ -106,18 +163,17 @@ class MainWindow(QMainWindow):
         self.report_preview.setVisible(False)  # Initially hidden
         self.main_layout.addWidget(self.report_preview)
 
-        # Website selection area
-        self.website_groupbox = QGroupBox("Websites")
-        self.website_layout = QVBoxLayout()
+        # Website Selection Area
+        self.website_groupbox = QGroupBox("Websites to Scrape")
+        website_layout = QVBoxLayout()
         self.checkbox_foxnews = QCheckBox("Fox News")
         self.checkbox_philstar = QCheckBox("Philstar")
         self.checkbox_manilaTimes = QCheckBox("Manila Times")
         self.checkbox_rappler = QCheckBox("Rappler")
-        self.website_layout.addWidget(self.checkbox_foxnews)
-        self.website_layout.addWidget(self.checkbox_philstar)
-        self.website_layout.addWidget(self.checkbox_manilaTimes)
-        self.website_layout.addWidget(self.checkbox_rappler)
-        self.website_groupbox.setLayout(self.website_layout)
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler]:
+            checkbox.setStyleSheet("font-size: 14px; color: #333333;")
+            website_layout.addWidget(checkbox)
+        self.website_groupbox.setLayout(website_layout)
         self.main_layout.addWidget(self.website_groupbox)
 
         # Scraping Operations Group
@@ -396,17 +452,16 @@ class ContentDialog(QDialog):
         # Create "All Articles" tab first
         self.all_articles_tab = QWidget()
         self.all_articles_layout = QVBoxLayout(self.all_articles_tab)
-        self.all_articles_display = QTextEdit()
-        self.all_articles_display.setReadOnly(True)
+        self.all_articles_list = QListWidget()
 
         # Combine all articles into one list
         self.combined_articles = []
         for articles in aggregated_content.values():
             self.combined_articles.extend(articles)
 
-        # Display all articles in the "All Articles" tab
-        self.all_articles_display.setText("\n".join(self.combined_articles))
-        self.all_articles_layout.addWidget(self.all_articles_display)
+        # Populate the "All Articles" list
+        self.populate_list_widget(self.all_articles_list, self.combined_articles)
+        self.all_articles_layout.addWidget(self.all_articles_list)
 
         # Add "All Articles" tab as the first tab
         self.tabs.addTab(self.all_articles_tab, "All Articles")
@@ -416,15 +471,21 @@ class ContentDialog(QDialog):
         for source, articles in aggregated_content.items():
             tab = QWidget()
             tab_layout = QVBoxLayout(tab)
-            text_display = QTextEdit()
-            text_display.setReadOnly(True)
-            text_display.setText("\n".join(articles))
-            tab_layout.addWidget(text_display)
+            list_widget = QListWidget()
+            self.populate_list_widget(list_widget, articles)
+            tab_layout.addWidget(list_widget)
             self.tabs.addTab(tab, source)
-            self.source_displays[source] = text_display
+            self.source_displays[source] = list_widget
 
         # Add tabs to layout
         self.layout.addWidget(self.tabs)
+
+    def populate_list_widget(self, list_widget, articles):
+        """Populate a QListWidget with a list of articles."""
+        list_widget.clear()
+        for article in articles:
+            item = QListWidgetItem(article)
+            list_widget.addItem(item)
 
     def perform_search(self):
         """Search articles and update the display."""
@@ -436,37 +497,34 @@ class ContentDialog(QDialog):
         current_tab_index = self.tabs.currentIndex()
         current_tab_name = self.tabs.tabText(current_tab_index)
 
-        no_results_message = f"<i>There's no articles matching '{query}' for today.</i>"
+        no_results_message = "No articles matching the search query."
 
         if current_tab_name == "All Articles":
             # Filter all articles
             filtered = [article for article in self.combined_articles if query in article.lower()]
-            if filtered:
-                self.all_articles_display.setText("\n".join(filtered))
-            else:
-                self.all_articles_display.setText(no_results_message)
+            self.populate_list_widget(self.all_articles_list, filtered if filtered else [no_results_message])
         else:
             # Filter articles for the specific source
             source_articles = self.aggregated_content.get(current_tab_name, [])
             filtered = [article for article in source_articles if query in article.lower()]
             if current_tab_name in self.source_displays:
-                if filtered:
-                    self.source_displays[current_tab_name].setText("\n".join(filtered))
-                else:
-                    self.source_displays[current_tab_name].setText(no_results_message)
-
+                self.populate_list_widget(
+                    self.source_displays[current_tab_name],
+                    filtered if filtered else [no_results_message]
+                )
 
     def clear_search(self):
         """Clear search and reset all tabs to original content."""
         self.search_field.clear()
 
         # Reset "All Articles" tab
-        self.all_articles_display.setText("\n".join(self.combined_articles))
+        self.populate_list_widget(self.all_articles_list, self.combined_articles)
 
         # Reset each source-specific tab
         for source, articles in self.aggregated_content.items():
             if source in self.source_displays:
-                self.source_displays[source].setText("\n".join(articles))
+                self.populate_list_widget(self.source_displays[source], articles)
+
 
 class TopicAnalysisDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
