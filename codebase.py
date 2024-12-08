@@ -1,5 +1,6 @@
 import sys
 import requests
+import json
 import spacy
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
@@ -17,16 +18,9 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nlp = spacy.load("en_core_web_md")
 
-TOPIC_LABELS = {
-    "Politics": ["law", "president", "government", "election", "policy", "vote", "martial"],
-    "Economy": ["economy", "market", "stock", "business", "trade", "finance", "budget"],
-    "Sports": ["game", "team", "match", "player", "sport", "win", "league"],
-    "Technology": ["tech", "software", "internet", "data", "AI", "cloud", "cybersecurity"],
-    "Health": ["health", "medicine", "hospital", "doctor", "vaccine", "pandemic", "treatment"],
-    "Environment": ["climate", "pollution", "sustainability", "wildlife", "nature", "renewable"],
-    "Entertainment": ["movie", "music", "show", "celebrity", "actor", "festival", "album"],
-    "Science": ["research", "study", "experiment", "innovation", "genetics", "discovery"]
-}
+# Load topic labels from a JSON file
+with open("topic_labels.json", "r") as file:
+    TOPIC_LABELS = json.load(file)
 
 def categorize_topic_dynamic(keywords):
         """Categorize a topic using semantic similarity with spaCy."""
