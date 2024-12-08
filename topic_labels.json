@@ -6,7 +6,11 @@
         "referendum", "justice", "lobbying", "protests", "coup", "treaty", "sanctions",
         "executive order", "UN", "NATO", "Supreme Court", "cabinet", "governor", "political party",
         "electoral college", "primaries", "coalition", "statecraft", "policy reform", "head of state",
-        "foreign affairs", "autocracy", "democracy", "constitution", "human rights"
+        "foreign affairs", "autocracy", "democracy", "constitution", "human rights",
+        "authoritarianism", "federalism", "socialism", "capitalism", "military junta", 
+        "political scandal", "civil rights", "political asylum", "sovereignty", "gerrymandering",
+        "term limits", "public opinion", "geopolitics", "whistleblowing", "checks and balances",
+        "diplomatic relations", "peace talks", "freedom of press", "martial law"
     ],
     "Economy": [
         "economy", "market", "stock", "business", "trade", "finance", "budget",
@@ -15,7 +19,11 @@
         "interest rate", "federal reserve", "Wall Street", "venture capital", "startup",
         "merger", "acquisition", "IPO", "economic policy", "tariffs", "subsidies",
         "trade deficit", "economic growth", "fiscal policy", "monetary policy", "stock market",
-        "consumer spending", "global trade", "commodity prices", "foreign exchange", "industrial output"
+        "consumer spending", "global trade", "commodity prices", "foreign exchange", "industrial output",
+        "venture funding", "wealth inequality", "global supply chain", "economic recovery",
+        "BRICS", "petrodollars", "inflation rate", "small business", "e-commerce trends",
+        "corporate tax", "tax evasion", "carbon tax", "hedge funds", "retail market",
+        "central bank", "currency devaluation", "decarbonization"
     ],
     "Sports": [
         "game", "team", "match", "player", "sport", "win", "league",
@@ -23,7 +31,11 @@
         "FIFA", "NBA", "football", "soccer", "tennis", "cricket", "athlete", "training",
         "World Cup", "medal", "record", "championship", "formula 1", "golf", "marathon",
         "esports", "stadium", "fan", "injury", "penalty", "draft", "transfer",
-        "varsity", "playoff", "referee", "goalkeeper", "striker", "athletics", "NBA finals"
+        "varsity", "playoff", "referee", "goalkeeper", "striker", "athletics", "NBA finals",
+        "rugby", "hockey", "track and field", "boxing", "MMA", "swimming",
+        "cycling", "badminton", "table tennis", "wrestling", "volleyball", "all-star game",
+        "sports psychology", "physical fitness", "performance analytics", "sports sponsorship",
+        "fantasy league"
     ],
     "Technology": [
         "tech", "software", "internet", "data", "AI", "cloud", "cybersecurity",
@@ -31,7 +43,11 @@
         "Apple", "Tesla", "coding", "programming", "virtual reality", "augmented reality",
         "machine learning", "smartphones", "gadgets", "quantum computing", "5G", "IoT",
         "automation", "apps", "social media", "big data", "electric vehicles", "gaming",
-        "privacy", "open source", "developer tools", "tech trends", "hardware", "wearables"
+        "privacy", "open source", "developer tools", "tech trends", "hardware", "wearables",
+        "fintech", "edtech", "biotech", "regtech", "green technology", "digital transformation",
+        "cyberattacks", "drones", "edge computing", "data centers", "quantum supremacy",
+        "tech monopoly", "artificial intelligence ethics", "deep learning", "autonomous vehicles",
+        "space tech", "nanotechnology", "chatbots", "digital twins", "semiconductors"
     ],
     "Health": [
         "health", "medicine", "hospital", "doctor", "vaccine", "pandemic", "treatment",
@@ -39,7 +55,10 @@
         "public health", "surgery", "diagnosis", "epidemic", "virus", "infection", "disease",
         "healthcare", "nursing", "therapy", "pharmaceutical", "clinical trials", "COVID-19",
         "cholesterol", "diabetes", "heart disease", "cancer", "epidemiology", "health insurance",
-        "immunity", "antibiotics", "child health", "disease prevention", "vaccination rates"
+        "immunity", "antibiotics", "child health", "disease prevention", "vaccination rates",
+        "telemedicine", "genomics", "personalized medicine", "health equity", "rare diseases",
+        "nutraceuticals", "sports medicine", "biomedical research", "mental health stigma",
+        "opioid crisis", "health literacy", "digital health"
     ],
     "Environment": [
         "climate", "pollution", "sustainability", "wildlife", "nature", "renewable",
@@ -47,7 +66,9 @@
         "carbon emissions", "solar energy", "wind energy", "ecosystem", "conservation",
         "green energy", "plastic waste", "ocean cleanup", "natural disaster", "hurricane",
         "wildfire", "drought", "rainforest", "clean water", "fossil fuels", "extinction",
-        "climate change policy", "environmental activism", "environmental policy", "eco-friendly"
+        "climate change policy", "environmental activism", "environmental policy", "eco-friendly",
+        "biodiversity loss", "carbon footprint", "climate crisis", "renewable infrastructure",
+        "sustainable agriculture", "climate adaptation", "environmental NGOs", "energy transition"
     ],
     "Entertainment": [
         "movie", "music", "show", "celebrity", "actor", "festival", "album",
@@ -55,7 +76,8 @@
         "concert", "theater", "blockbuster", "director", "streaming", "box office", "trailers",
         "drama", "comedy", "reality TV", "Grammy", "Oscars", "superhero", "franchise",
         "biopic", "video games", "viral", "TikTok", "YouTube", "fan club", "red carpet",
-        "music video", "soundtrack", "pop culture", "series finale", "celebrity gossip"
+        "music video", "soundtrack", "pop culture", "series finale", "celebrity gossip",
+        "binge-watch", "film festival", "streaming platforms", "behind-the-scenes"
     ],
     "Science": [
         "research", "study", "experiment", "innovation", "genetics", "discovery",
@@ -63,7 +85,8 @@
         "evolution", "astronomy", "scientist", "theory", "breakthrough", "AI research",
         "technology integration", "microbiology", "robotics", "paleontology", "climate science",
         "DNA", "vaccines", "universe", "cosmology", "ecology", "materials science",
-        "particle physics", "space exploration", "scientific journal", "biology research"
+        "particle physics", "space exploration", "scientific journal", "biology research",
+        "artificial photosynthesis", "genetic engineering", "space telescopes", "scientific ethics"
     ],
     "Education": [
         "school", "university", "college", "degree", "teacher", "student",
@@ -71,25 +94,30 @@
         "tuition", "exam", "online learning", "teacher training", "STEM", "graduation",
         "learning resources", "academic research", "dropout", "higher education", "k-12",
         "distance learning", "internship", "standardized testing", "educational reform",
-        "academic performance", "student loans", "school board", "classroom technology"
+        "academic performance", "student loans", "school board", "classroom technology",
+        "digital classrooms", "education equity", "special education", "study abroad"
     ],
     "Crime": [
         "crime", "theft", "murder", "fraud", "corruption", "police", "trial",
         "FBI", "Interpol", "cybercrime", "kidnapping", "arson", "assault", "homicide",
         "witness", "prosecution", "smuggling", "drug trafficking", "money laundering",
         "court", "verdict", "prison", "gang", "forgery", "identity theft", "terrorism",
-        "organized crime", "domestic violence", "white collar crime", "embezzlement", "carjacking"
+        "organized crime", "domestic violence", "white collar crime", "embezzlement", "carjacking",
+        "juvenile crime", "serial killer", "street gangs", "crime prevention", "human trafficking"
     ],
     "Travel": [
         "tourism", "destination", "vacation", "flight", "hotel", "cruise", 
         "backpacking", "adventure", "itinerary", "landmarks", "travel agency",
         "airline", "visa", "passport", "tourist", "road trip", "beaches", "mountains",
-        "cultural heritage", "travel tips", "sustainable tourism", "airfare", "travel booking"
+        "cultural heritage", "travel tips", "sustainable tourism", "airfare", "travel booking",
+        "luxury travel", "eco-tourism", "travel insurance", "expat destinations", "solo travel"
     ],
     "Fashion": [
         "style", "clothing", "runway", "designer", "trends", "fashion week",
         "brand", "couture", "makeup", "accessories", "model", "wardrobe",
         "hairstyle", "cosmetics", "luxury", "streetwear", "sneakers", "vintage",
-        "ecommerce", "outfit", "celebrity fashion", "fashion magazine", "jewelry", "design label"
+        "ecommerce", "outfit", "celebrity fashion", "fashion magazine", "jewelry", "design label",
+        "fashion influencers", "sustainable fashion", "fast fashion", "menswear", "womenswear",
+        "seasonal collections", "tailoring", "fashion campaign"
     ]
 }
