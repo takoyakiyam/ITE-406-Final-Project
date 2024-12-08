@@ -2,16 +2,19 @@ import sys
 import csv
 import json
 import re
+import time
 import networkx as nx
 import spacy
 import requests
 import matplotlib.pyplot as plt
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
     QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -54,32 +57,41 @@ def scrape_foxnews():
     return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
 
 def scrape_philstar():
-    import requests
-    from bs4 import BeautifulSoup
-
     url = "https://www.philstar.com/"
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.content, 'html.parser')
+    max_retries = 3  # Maximum number of retries
+    retry_delay = 2  # Delay between retries in seconds
 
-    # Remove the specific "Forex & Stocks" sections
-    unwanted_sections = soup.find_all("div", class_="ribbon_section news_featured")
-    for section in unwanted_sections:
-        if "Forex" in section.get_text():
-            # Remove the entire parent ribbon div containing the Forex section
-            section.find_parent("div", class_="ribbon").decompose()
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Remove the newsletter signup content section by ID
-    newsletter_signup = soup.find("div", id="newsletter-signup_content")
-    if newsletter_signup:
-        newsletter_signup.decompose()
-        
-    lotto = soup.find("div", id="lotto_past")
-    if lotto:
-        lotto.decompose()
+            # Remove the specific "Forex & Stocks" sections
+            unwanted_sections = soup.find_all("div", class_="ribbon_section news_featured")
+            for section in unwanted_sections:
+                if "Forex" in section.get_text():
+                    # Remove the entire parent ribbon div containing the Forex section
+                    section.find_parent("div", class_="ribbon").decompose()
 
-    # Extract and return the text of all <h2> elements
-    return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
+            # Remove the newsletter signup content section by ID
+            newsletter_signup = soup.find("div", id="newsletter-signup_content")
+            if newsletter_signup:
+                newsletter_signup.decompose()
+
+            lotto = soup.find("div", id="lotto_past")
+            if lotto:
+                lotto.decompose()
+
+            # Extract and return the text of all <h2> elements
+            return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
+
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                print(f"Attempt {attempt + 1} failed. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                raise Exception(f"Failed to scrape Philstar after {max_retries} attempts. Error: {e}")
 
 def scrape_manilaTimes():
     url = "https://www.manilatimes.net"
@@ -127,6 +139,22 @@ def scrape_gma():
     ]
 
     return todays_articles
+
+def scrape_cnn():
+    url = "https://www.cnn.com/"
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Find all <span> elements with the class 'container__headline-text'
+    headlines = [
+        span.get_text(strip=True) 
+        for span in soup.find_all('span', class_='container__headline-text')
+        if 'headline' in span.attrs.get('data-editable', '')
+    ]
+
+    return headlines
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -213,7 +241,8 @@ class MainWindow(QMainWindow):
         self.checkbox_manilaTimes = QCheckBox("Manila Times")
         self.checkbox_rappler = QCheckBox("Rappler")
         self.checkbox_gma = QCheckBox("GMA News")
-        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma]:
+        self.checkbox_cnn = QCheckBox("CNN News")
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma, self.checkbox_cnn]:
             checkbox.setStyleSheet("font-size: 14px; color: #333333;")
             website_layout.addWidget(checkbox)
         self.website_groupbox.setLayout(website_layout)
@@ -286,7 +315,7 @@ class MainWindow(QMainWindow):
         """Toggle all checkboxes."""
         self.all_selected = not self.all_selected
         state = self.all_selected
-        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma]:
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma, self.checkbox_cnn]:
             checkbox.setChecked(state)
         self.check_all_button.setText("Unselect All Websites" if state else "Select All Websites")
 
@@ -309,7 +338,8 @@ class MainWindow(QMainWindow):
             ("Philstar", self.checkbox_philstar.isChecked(), scrape_philstar),
             ("Manila Times", self.checkbox_manilaTimes.isChecked(), scrape_manilaTimes),
             ("Rappler", self.checkbox_rappler.isChecked(), scrape_rappler),
-            ("GMA News", self.checkbox_gma.isChecked(), scrape_gma)
+            ("GMA News", self.checkbox_gma.isChecked(), scrape_gma),
+            ("CNN News", self.checkbox_cnn.isChecked(), scrape_cnn)
         ]
 
         self.results_display.append(f"<b>Scraping articles...</b>")
@@ -478,6 +508,9 @@ class ContentDialog(QDialog):
         self.aggregated_content = aggregated_content
         self.layout = QVBoxLayout(self)
 
+        # Initialize sentiment analyzer
+        self.sentiment_analyzer = SentimentIntensityAnalyzer()
+
         # Search bar
         search_layout = QHBoxLayout()
         self.search_field = QLineEdit()
@@ -490,6 +523,16 @@ class ContentDialog(QDialog):
         search_layout.addWidget(self.search_button)
         search_layout.addWidget(self.clear_button)
         self.layout.addLayout(search_layout)
+
+        # Description for color coding
+        description_label = QLabel(
+            "<b>Sentiment Analysis Color Coding:</b> "
+            "<span style='color: #006400;'>Green</span>: Positive, "
+            "<span style='color: red;'>Red</span>: Negative, "
+            "<span style='color: gray;'>Gray</span>: Neutral"
+        )
+        description_label.setWordWrap(True)
+        self.layout.addWidget(description_label)
 
         # Tab view for content
         self.tabs = QTabWidget()
@@ -525,11 +568,36 @@ class ContentDialog(QDialog):
         # Add tabs to layout
         self.layout.addWidget(self.tabs)
 
+    def analyze_sentiment(self, text):
+        """Analyze the sentiment of a given text using VADER."""
+        sentiment_score = self.sentiment_analyzer.polarity_scores(text)['compound']
+        if sentiment_score > 0.05:
+            return "positive"
+        elif sentiment_score < -0.05:
+            return "negative"
+        else:
+            return "neutral"
+
     def populate_list_widget(self, list_widget, articles):
-        """Populate a QListWidget with a list of articles."""
+        """Populate a QListWidget with a list of articles, color-code them, and make text bold."""
         list_widget.clear()
         for article in articles:
+            sentiment = self.analyze_sentiment(article)
             item = QListWidgetItem(article)
+            
+            # Set text color based on sentiment
+            if sentiment == "positive":
+                item.setForeground(Qt.darkGreen)
+            elif sentiment == "negative":
+                item.setForeground(Qt.red)
+            else:
+                item.setForeground(Qt.gray)
+
+            # Make text bold
+            font = QFont()
+            font.setBold(True)
+            item.setFont(font)
+
             list_widget.addItem(item)
 
     def perform_search(self):
@@ -569,7 +637,6 @@ class ContentDialog(QDialog):
         for source, articles in self.aggregated_content.items():
             if source in self.source_displays:
                 self.populate_list_widget(self.source_displays[source], articles)
-
 
 class TopicAnalysisDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
