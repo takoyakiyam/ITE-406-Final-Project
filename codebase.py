@@ -52,6 +52,13 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
 
+        # Greeting and date
+        self.greeting_label = QLabel("<h2>Greetings, User!</h2>")
+        current_date = datetime.now().strftime("%B %d, %Y")
+        self.date_label = QLabel(f"Today's Date is <b> {current_date}</b>")
+        self.main_layout.addWidget(self.greeting_label)
+        self.main_layout.addWidget(self.date_label)
+
         # Top label
         self.label = QLabel("<h3>Select Websites to Scrape</h3>")
         self.main_layout.addWidget(self.label)
@@ -92,7 +99,7 @@ class MainWindow(QMainWindow):
         # State tracking
         self.all_selected = False
         self.scraped_content = {}
-
+        
     def toggle_select_all(self):
         """Toggle all checkboxes."""
         self.all_selected = not self.all_selected
@@ -211,16 +218,25 @@ class ContentDialog(QDialog):
         current_tab_index = self.tabs.currentIndex()
         current_tab_name = self.tabs.tabText(current_tab_index)
 
+        no_results_message = f"<i>There's no articles matching '{query}' for today.</i>"
+
         if current_tab_name == "All Articles":
             # Filter all articles
             filtered = [article for article in self.combined_articles if query in article.lower()]
-            self.all_articles_display.setText("\n".join(filtered))
+            if filtered:
+                self.all_articles_display.setText("\n".join(filtered))
+            else:
+                self.all_articles_display.setText(no_results_message)
         else:
             # Filter articles for the specific source
             source_articles = self.aggregated_content.get(current_tab_name, [])
             filtered = [article for article in source_articles if query in article.lower()]
             if current_tab_name in self.source_displays:
-                self.source_displays[current_tab_name].setText("\n".join(filtered))
+                if filtered:
+                    self.source_displays[current_tab_name].setText("\n".join(filtered))
+                else:
+                    self.source_displays[current_tab_name].setText(no_results_message)
+
 
     def clear_search(self):
         """Clear search and reset all tabs to original content."""
