@@ -138,8 +138,12 @@ def scrape_gma():
         item["title"]
         for item in news_data if item["published_date"] == current_date
     ]
+    
+    if not todays_articles:
+        return f"No articles available for {current_date}. This might happen if the day has just started or no new articles are published yet."
 
     return todays_articles
+
 
 def scrape_cnn():
     url = "https://www.cnn.com/"
