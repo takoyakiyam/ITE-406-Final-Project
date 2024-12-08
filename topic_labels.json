@@ -4,21 +4,26 @@
         "Joe Biden", "Donald Trump", "congress", "parliament", "legislation", "diplomacy",
         "campaign", "scandal", "minister", "senate", "republican", "democrat", "impeachment",
         "referendum", "justice", "lobbying", "protests", "coup", "treaty", "sanctions",
-        "executive order", "UN", "NATO", "Supreme Court", "cabinet", "governor"
+        "executive order", "UN", "NATO", "Supreme Court", "cabinet", "governor", "political party",
+        "electoral college", "primaries", "coalition", "statecraft", "policy reform", "head of state",
+        "foreign affairs", "autocracy", "democracy", "constitution", "human rights"
     ],
     "Economy": [
         "economy", "market", "stock", "business", "trade", "finance", "budget",
         "Warren Buffett", "Elon Musk", "inflation", "recession", "investment", "GDP",
         "tax", "debt", "cryptocurrency", "real estate", "unemployment", "exports", "imports",
         "interest rate", "federal reserve", "Wall Street", "venture capital", "startup",
-        "merger", "acquisition", "IPO", "economic policy", "tariffs", "subsidies"
+        "merger", "acquisition", "IPO", "economic policy", "tariffs", "subsidies",
+        "trade deficit", "economic growth", "fiscal policy", "monetary policy", "stock market",
+        "consumer spending", "global trade", "commodity prices", "foreign exchange", "industrial output"
     ],
     "Sports": [
         "game", "team", "match", "player", "sport", "win", "league",
         "Lionel Messi", "Cristiano Ronaldo", "tournament", "coach", "score", "Olympics",
         "FIFA", "NBA", "football", "soccer", "tennis", "cricket", "athlete", "training",
         "World Cup", "medal", "record", "championship", "formula 1", "golf", "marathon",
-        "esports", "stadium", "fan", "injury", "penalty", "draft", "transfer"
+        "esports", "stadium", "fan", "injury", "penalty", "draft", "transfer",
+        "varsity", "playoff", "referee", "goalkeeper", "striker", "athletics", "NBA finals"
     ],
     "Technology": [
         "tech", "software", "internet", "data", "AI", "cloud", "cybersecurity",
@@ -26,14 +31,15 @@
         "Apple", "Tesla", "coding", "programming", "virtual reality", "augmented reality",
         "machine learning", "smartphones", "gadgets", "quantum computing", "5G", "IoT",
         "automation", "apps", "social media", "big data", "electric vehicles", "gaming",
-        "privacy", "open source", "developer tools"
+        "privacy", "open source", "developer tools", "tech trends", "hardware", "wearables"
     ],
     "Health": [
         "health", "medicine", "hospital", "doctor", "vaccine", "pandemic", "treatment",
         "Pfizer", "Moderna", "mental health", "wellness", "nutrition", "fitness",
         "public health", "surgery", "diagnosis", "epidemic", "virus", "infection", "disease",
         "healthcare", "nursing", "therapy", "pharmaceutical", "clinical trials", "COVID-19",
-        "cholesterol", "diabetes", "heart disease", "cancer", "epidemiology", "health insurance"
+        "cholesterol", "diabetes", "heart disease", "cancer", "epidemiology", "health insurance",
+        "immunity", "antibiotics", "child health", "disease prevention", "vaccination rates"
     ],
     "Environment": [
         "climate", "pollution", "sustainability", "wildlife", "nature", "renewable",
@@ -41,46 +47,49 @@
         "carbon emissions", "solar energy", "wind energy", "ecosystem", "conservation",
         "green energy", "plastic waste", "ocean cleanup", "natural disaster", "hurricane",
         "wildfire", "drought", "rainforest", "clean water", "fossil fuels", "extinction",
-        "climate change policy", "environmental activism"
+        "climate change policy", "environmental activism", "environmental policy", "eco-friendly"
     ],
     "Entertainment": [
         "movie", "music", "show", "celebrity", "actor", "festival", "album",
         "Taylor Swift", "Beyoncé", "Netflix", "Hollywood", "Broadway", "award",
         "concert", "theater", "blockbuster", "director", "streaming", "box office", "trailers",
         "drama", "comedy", "reality TV", "Grammy", "Oscars", "superhero", "franchise",
-        "biopic", "video games", "viral", "TikTok", "YouTube", "fan club", "red carpet"
+        "biopic", "video games", "viral", "TikTok", "YouTube", "fan club", "red carpet",
+        "music video", "soundtrack", "pop culture", "series finale", "celebrity gossip"
     ],
     "Science": [
         "research", "study", "experiment", "innovation", "genetics", "discovery",
         "NASA", "Einstein", "physics", "biology", "chemistry", "space", "quantum",
         "evolution", "astronomy", "scientist", "theory", "breakthrough", "AI research",
         "technology integration", "microbiology", "robotics", "paleontology", "climate science",
-        "DNA", "vaccines", "universe", "cosmology", "ecology", "materials science"
+        "DNA", "vaccines", "universe", "cosmology", "ecology", "materials science",
+        "particle physics", "space exploration", "scientific journal", "biology research"
     ],
     "Education": [
         "school", "university", "college", "degree", "teacher", "student",
         "Harvard", "MIT", "scholarship", "education policy", "curriculum", "classroom",
         "tuition", "exam", "online learning", "teacher training", "STEM", "graduation",
         "learning resources", "academic research", "dropout", "higher education", "k-12",
-        "distance learning", "internship", "standardized testing", "educational reform"
+        "distance learning", "internship", "standardized testing", "educational reform",
+        "academic performance", "student loans", "school board", "classroom technology"
     ],
     "Crime": [
         "crime", "theft", "murder", "fraud", "corruption", "police", "trial",
         "FBI", "Interpol", "cybercrime", "kidnapping", "arson", "assault", "homicide",
         "witness", "prosecution", "smuggling", "drug trafficking", "money laundering",
         "court", "verdict", "prison", "gang", "forgery", "identity theft", "terrorism",
-        "organized crime", "domestic violence", "white collar crime"
+        "organized crime", "domestic violence", "white collar crime", "embezzlement", "carjacking"
     ],
     "Travel": [
         "tourism", "destination", "vacation", "flight", "hotel", "cruise", 
         "backpacking", "adventure", "itinerary", "landmarks", "travel agency",
         "airline", "visa", "passport", "tourist", "road trip", "beaches", "mountains",
-        "cultural heritage", "travel tips", "sustainable tourism"
+        "cultural heritage", "travel tips", "sustainable tourism", "airfare", "travel booking"
     ],
     "Fashion": [
         "style", "clothing", "runway", "designer", "trends", "fashion week",
         "brand", "couture", "makeup", "accessories", "model", "wardrobe",
         "hairstyle", "cosmetics", "luxury", "streetwear", "sneakers", "vintage",
-        "ecommerce", "outfit", "celebrity fashion", "fashion magazine"
+        "ecommerce", "outfit", "celebrity fashion", "fashion magazine", "jewelry", "design label"
     ]
 }
