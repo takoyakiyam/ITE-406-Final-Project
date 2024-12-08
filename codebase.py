@@ -1,5 +1,6 @@
 import sys
 import requests
+import csv
 import json
 import networkx as nx
 import spacy
@@ -7,10 +8,12 @@ import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
-    QLineEdit, QTabWidget, QGroupBox, QComboBox, QToolTip, QMessageBox
+    QLineEdit, QTabWidget, QGroupBox, QComboBox, QToolTip, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from datetime import datetime
 from gensim.corpora.dictionary import Dictionary
@@ -97,6 +100,11 @@ class MainWindow(QMainWindow):
         # Top label
         self.label = QLabel("<h3>Select Websites to Scrape</h3>")
         self.main_layout.addWidget(self.label)
+        
+        # Add report preview widget
+        self.report_preview = QWebEngineView()
+        self.report_preview.setVisible(False)  # Initially hidden
+        self.main_layout.addWidget(self.report_preview)
 
         # Website selection area
         self.website_groupbox = QGroupBox("Websites")
@@ -155,6 +163,25 @@ class MainWindow(QMainWindow):
         # State tracking
         self.all_selected = False
         self.scraped_content = {}
+        
+    def preprocess_articles(self, articles):
+        """Preprocess articles for topic modeling."""
+        import nltk
+        from nltk.corpus import stopwords
+        from nltk.tokenize import word_tokenize
+
+        # Download necessary NLTK data
+        nltk.download('punkt', quiet=True)
+        nltk.download('stopwords', quiet=True)
+
+        stop_words = set(stopwords.words('english'))
+        processed_articles = []
+        for article in articles:
+            tokens = word_tokenize(article.lower())  # Tokenize and lowercase
+            tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+            processed_articles.append(tokens)
+        return processed_articles
+
 
     def toggle_select_all(self):
         """Toggle all checkboxes."""
@@ -217,13 +244,119 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def generate_report(self):
-        """Placeholder for Generate Report functionality."""
-        self.results_display.append("<b>Generating Report...</b> (Feature not yet implemented)")
+        """Generate a detailed, printable report and preview it in a dialog."""
+        self.results_display.clear()
+
+        if not self.scraped_content:
+            self.results_display.append("<b>Error:</b> No content available to generate a report. Scrape websites first.")
+            return
+
+        self.results_display.append("<b>Generating report...</b>")
+
+        # Create a base HTML template for the report
+        report_html = [
+            "<html>",
+            "<head>",
+            "<style>",
+            "body { font-family: Arial, sans-serif; margin: 20px; }",
+            "h1, h2, h3 { color: #2c3e50; }",
+            "table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }",
+            "table, th, td { border: 1px solid #ddd; }",
+            "th, td { padding: 8px; text-align: left; }",
+            "th { background-color: #f4f4f4; }",
+            ".section { margin-bottom: 30px; }",
+            "</style>",
+            "</head>",
+            "<body>",
+        ]
+
+        # Report Header
+        current_date = datetime.now().strftime("%B %d, %Y")
+        report_html.append(f"<h1>News Analysis Report</h1>")
+        report_html.append(f"<p><b>Date:</b> {current_date}</p>")
+
+        # Aggregated Scrape Count
+        total_articles = sum(len(articles) for articles in self.scraped_content.values())
+        report_html.append(f"<div class='section'><h2>Aggregated Scrape Count</h2>")
+        report_html.append(f"<p>Total Articles Scraped: <b>{total_articles}</b></p></div>")
+
+        # Scraped Content Summary by Source
+        report_html.append("<div class='section'><h2>Scraped Content Summary</h2>")
+        report_html.append("<table><tr><th>Source</th><th>Articles Scraped</th></tr>")
+        for source, articles in self.scraped_content.items():
+            report_html.append(f"<tr><td>{source}</td><td>{len(articles)}</td></tr>")
+        report_html.append("</table></div>")
+
+        # Topic Modeling Summary
+        report_html.append("<div class='section'><h2>Topic Analysis</h2>")
+        combined_articles = [article for articles in self.scraped_content.values() for article in articles]
+        if combined_articles:
+            processed_articles = self.preprocess_articles(combined_articles)
+            dictionary = Dictionary(processed_articles)
+            corpus = [dictionary.doc2bow(text) for text in processed_articles]
+            lda_model = LdaModel(corpus, num_topics=5, id2word=dictionary, passes=15)
+
+            # Include top topics
+            topics = lda_model.show_topics(num_topics=5, num_words=5, formatted=False)
+            report_html.append("<ul>")
+            for idx, topic in topics:
+                keywords = ", ".join([word for word, _ in topic])
+                report_html.append(f"<li><b>Topic {idx + 1}:</b> {keywords}</li>")
+            report_html.append("</ul>")
+        else:
+            report_html.append("<p>No articles available for topic analysis.</p>")
+        report_html.append("</div>")
+
+        # Close HTML
+        report_html.append("</body></html>")
+        report_html = "\n".join(report_html)
+
+        # Open the ReportPreviewDialog
+        dialog = ReportPreviewDialog(report_html, self)
+        dialog.exec_()
+
+        self.results_display.append("<b>Report preview loaded successfully!</b>")
+
 
     def export_data(self):
-        """Placeholder for Export Data functionality."""
-        self.results_display.append("<b>Exporting Data...</b> (Feature not yet implemented)")
+        """Export scraped data to JSON or CSV."""
+        if not self.scraped_content:
+            self.results_display.append("<b>Error:</b> No data available to export. Scrape websites first.")
+            return
 
+        # Open a file dialog for the user to choose the save location
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Data",
+            "",
+            "JSON Files (*.json);;CSV Files (*.csv)",
+            options=options
+        )
+
+        if not file_path:
+            self.results_display.append("<b>Export canceled:</b> No file selected.")
+            return
+
+        try:
+            if file_path.endswith(".json"):
+                # Save as JSON
+                with open(file_path, "w", encoding="utf-8") as file:
+                    json.dump(self.scraped_content, file, indent=4, ensure_ascii=False)
+                self.results_display.append(f"<b>Success:</b> Data exported to {file_path}")
+            elif file_path.endswith(".csv"):
+                # Save as CSV
+                with open(file_path, "w", newline="", encoding="utf-8") as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Source", "Article"])
+                    for source, articles in self.scraped_content.items():
+                        for article in articles:
+                            writer.writerow([source, article])
+                self.results_display.append(f"<b>Success:</b> Data exported to {file_path}")
+            else:
+                self.results_display.append("<b>Error:</b> Unsupported file format.")
+        except Exception as e:
+            self.results_display.append(f"<b>Error:</b> Failed to export data. ({str(e)})")
 
     def view_aggregated_content(self):
         """Display aggregated articles."""
@@ -612,6 +745,35 @@ class VisualizeNetworkDialog(QDialog):
 
             # Redraw the canvas to clear hover labels if no node is hovered
             self.canvas.draw_idle()
+
+class ReportPreviewDialog(QDialog):
+    def __init__(self, html_content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Report Preview")
+        self.resize(900, 600)
+
+        # Layout for the dialog
+        layout = QVBoxLayout(self)
+
+        # Add QWebEngineView for previewing the report
+        self.web_view = QWebEngineView()
+        self.web_view.setHtml(html_content)
+        layout.addWidget(self.web_view)
+
+        # Add print button
+        self.print_button = QPushButton("🖨️ Print Report")
+        self.print_button.clicked.connect(self.print_report)
+        layout.addWidget(self.print_button)
+
+    def print_report(self):
+        """Print the report."""
+        printer = QPrinter()
+        printer.setPageSize(QPrinter.A4)
+        printer.setOutputFormat(QPrinter.NativeFormat)
+
+        dialog = QPrintDialog(printer, self)
+        if dialog.exec_() == QPrintDialog.Accepted:
+            self.web_view.print(printer)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
