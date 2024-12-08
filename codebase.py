@@ -1,9 +1,10 @@
 import sys
-import requests
 import csv
 import json
+import re
 import networkx as nx
 import spacy
+import requests
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
@@ -11,7 +12,6 @@ from PyQt5.QtWidgets import (
     QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -54,16 +54,29 @@ def scrape_foxnews():
     return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
 
 def scrape_philstar():
+    import requests
+    from bs4 import BeautifulSoup
+
     url = "https://www.philstar.com/"
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Remove the <div> elements with specified ids
-    for unwanted_id in ["forex", "newsletter-signup_content"]:
-        unwanted_div = soup.find("div", id=unwanted_id)
-        if unwanted_div:
-            unwanted_div.decompose()  # Remove the element from the DOM tree
+    # Remove the specific "Forex & Stocks" sections
+    unwanted_sections = soup.find_all("div", class_="ribbon_section news_featured")
+    for section in unwanted_sections:
+        if "Forex" in section.get_text():
+            # Remove the entire parent ribbon div containing the Forex section
+            section.find_parent("div", class_="ribbon").decompose()
+
+    # Remove the newsletter signup content section by ID
+    newsletter_signup = soup.find("div", id="newsletter-signup_content")
+    if newsletter_signup:
+        newsletter_signup.decompose()
+        
+    lotto = soup.find("div", id="lotto_past")
+    if lotto:
+        lotto.decompose()
 
     # Extract and return the text of all <h2> elements
     return [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
@@ -85,6 +98,35 @@ def scrape_rappler():
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
     return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
+
+def scrape_gma():
+    url = "https://www.gmanetwork.com/news/"
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Locate the JavaScript block containing the JSON data
+    script_tag = soup.find("script", text=re.compile("GLOBAL_SSR_ROBOT_JUST_IN_JSON"))
+    if not script_tag:
+        return []
+
+    # Extract the JSON data using regex
+    json_match = re.search(r"GLOBAL_SSR_ROBOT_JUST_IN_JSON\s*=\s*(\[.*?\]);", script_tag.string)
+    if not json_match:
+        return []
+
+    # Parse the JSON data
+    news_data = json.loads(json_match.group(1))
+
+    # Filter articles for today's date
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    todays_articles = [
+        item["title"]
+        for item in news_data if item["published_date"] == current_date
+    ]
+
+    return todays_articles
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -165,12 +207,13 @@ class MainWindow(QMainWindow):
 
         # Website Selection Area
         self.website_groupbox = QGroupBox("Websites to Scrape")
-        website_layout = QVBoxLayout()
+        website_layout = QHBoxLayout()
         self.checkbox_foxnews = QCheckBox("Fox News")
         self.checkbox_philstar = QCheckBox("Philstar")
         self.checkbox_manilaTimes = QCheckBox("Manila Times")
         self.checkbox_rappler = QCheckBox("Rappler")
-        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler]:
+        self.checkbox_gma = QCheckBox("GMA News")
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma]:
             checkbox.setStyleSheet("font-size: 14px; color: #333333;")
             website_layout.addWidget(checkbox)
         self.website_groupbox.setLayout(website_layout)
@@ -243,7 +286,7 @@ class MainWindow(QMainWindow):
         """Toggle all checkboxes."""
         self.all_selected = not self.all_selected
         state = self.all_selected
-        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler]:
+        for checkbox in [self.checkbox_foxnews, self.checkbox_philstar, self.checkbox_manilaTimes, self.checkbox_rappler, self.checkbox_gma]:
             checkbox.setChecked(state)
         self.check_all_button.setText("Unselect All Websites" if state else "Select All Websites")
 
@@ -254,7 +297,8 @@ class MainWindow(QMainWindow):
             self.checkbox_foxnews.isChecked(),
             self.checkbox_philstar.isChecked(),
             self.checkbox_manilaTimes.isChecked(),
-            self.checkbox_rappler.isChecked()
+            self.checkbox_rappler.isChecked(),
+            self.checkbox_gma.isChecked()
         ]):
             self.results_display.append("<b>Error:</b> No website selected. Please choose a website.")
             return
@@ -265,6 +309,7 @@ class MainWindow(QMainWindow):
             ("Philstar", self.checkbox_philstar.isChecked(), scrape_philstar),
             ("Manila Times", self.checkbox_manilaTimes.isChecked(), scrape_manilaTimes),
             ("Rappler", self.checkbox_rappler.isChecked(), scrape_rappler),
+            ("GMA News", self.checkbox_gma.isChecked(), scrape_gma)
         ]
 
         self.results_display.append(f"<b>Scraping articles...</b>")
