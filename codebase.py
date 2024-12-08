@@ -40,12 +40,11 @@ def scrape_rappler():
     soup = BeautifulSoup(response.content, 'html.parser')
     return [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
 
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("News Scraper with Improved Layout")
-        self.resize(1000, 700)
+        self.resize(700, 700)
 
         # Main central widget and layout
         self.central_widget = QWidget()
@@ -77,29 +76,50 @@ class MainWindow(QMainWindow):
         self.website_groupbox.setLayout(self.website_layout)
         self.main_layout.addWidget(self.website_groupbox)
 
-        # Action buttons
-        self.action_buttons_layout = QHBoxLayout()
+        # Scraping Operations Group
+        self.scraping_operations_group = QGroupBox("Scraping Operations")
+        self.scraping_operations_layout = QHBoxLayout()
         self.check_all_button = QPushButton("Select All Websites")
         self.check_all_button.clicked.connect(self.toggle_select_all)
         self.scrape_button = QPushButton("Scrape Selected Websites")
         self.scrape_button.clicked.connect(self.scrape_websites)
-        self.view_aggregated_button = QPushButton("View Aggregated Articles")
+        self.scraping_operations_layout.addWidget(self.check_all_button)
+        self.scraping_operations_layout.addWidget(self.scrape_button)
+        self.scraping_operations_group.setLayout(self.scraping_operations_layout)
+        self.main_layout.addWidget(self.scraping_operations_group)
+
+        # Analysis Operations Group
+        self.analysis_operations_group = QGroupBox("Analysis Operations")
+        self.analysis_operations_layout = QHBoxLayout()
+        self.view_aggregated_button = QPushButton("👁️‍🗨️ View Aggregated Articles")
         self.view_aggregated_button.clicked.connect(self.view_aggregated_content)
-        self.action_buttons_layout.addWidget(self.check_all_button)
-        self.action_buttons_layout.addWidget(self.scrape_button)
-        self.action_buttons_layout.addWidget(self.view_aggregated_button)
-        self.main_layout.addLayout(self.action_buttons_layout)
+        self.visualize_network_button = QPushButton("🌐  Visualize Network")
+        self.visualize_network_button.clicked.connect(self.visualize_network)
+        self.analyze_topics_button = QPushButton("👨🏻‍💻 Analyze Topics")
+        self.analyze_topics_button.clicked.connect(self.analyze_topics)
+        self.generate_report_button = QPushButton("📄 Generate Report")
+        self.generate_report_button.clicked.connect(self.generate_report)
+        self.export_data_button = QPushButton("💾 Export Data")
+        self.export_data_button.clicked.connect(self.export_data)
+
+        self.analysis_operations_layout.addWidget(self.view_aggregated_button)
+        self.analysis_operations_layout.addWidget(self.visualize_network_button)
+        self.analysis_operations_layout.addWidget(self.analyze_topics_button)
+        self.analysis_operations_layout.addWidget(self.generate_report_button)
+        self.analysis_operations_layout.addWidget(self.export_data_button)
+        self.analysis_operations_group.setLayout(self.analysis_operations_layout)
+        self.main_layout.addWidget(self.analysis_operations_group)
 
         # Results display
         self.results_display = QTextEdit()
         self.results_display.setReadOnly(True)
         self.results_display.setPlaceholderText("Scraped results will appear here...")
-        self.main_layout.addWidget(self.results_display, stretch=2)
+        self.main_layout.addWidget(self.results_display)
 
         # State tracking
         self.all_selected = False
         self.scraped_content = {}
-        
+
     def toggle_select_all(self):
         """Toggle all checkboxes."""
         self.all_selected = not self.all_selected
@@ -139,6 +159,23 @@ class MainWindow(QMainWindow):
                     self.results_display.append(f"{name}: Failed to scrape. ({str(e)})")
 
         self.results_display.append("\n<b>Scraping complete.</b>")
+
+    def visualize_network(self):
+        """Placeholder for Visualize Network functionality."""
+        self.results_display.append("<b>Visualizing Network...</b> (Feature not yet implemented)")
+
+    def analyze_topics(self):
+        """Placeholder for Analyze Topics functionality."""
+        self.results_display.append("<b>Analyzing Topics...</b> (Feature not yet implemented)")
+
+    def generate_report(self):
+        """Placeholder for Generate Report functionality."""
+        self.results_display.append("<b>Generating Report...</b> (Feature not yet implemented)")
+
+    def export_data(self):
+        """Placeholder for Export Data functionality."""
+        self.results_display.append("<b>Exporting Data...</b> (Feature not yet implemented)")
+
 
     def view_aggregated_content(self):
         """Display aggregated articles."""
