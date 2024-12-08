@@ -2,11 +2,13 @@ import sys
 import requests
 import json
 import spacy
+import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
-    QLineEdit, QTabWidget, QGroupBox
+    QLineEdit, QTabWidget, QGroupBox, QComboBox
 )
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from datetime import datetime
 from gensim.corpora.dictionary import Dictionary
 from gensim.models import LdaModel
@@ -201,46 +203,9 @@ class MainWindow(QMainWindow):
             self.results_display.append("<b>Error:</b> No content to analyze. Scrape websites first.")
             return
 
-        self.results_display.append("<b>Analyzing Topics...</b>")
-        
-        # Combine all articles
-        combined_articles = []
-        for articles in self.scraped_content.values():
-            combined_articles.extend(articles)
-
-        if not combined_articles:
-            self.results_display.append("<b>No articles found for topic analysis.</b>")
-            return
-
-        # Preprocess articles
-        stop_words = set(stopwords.words('english'))
-        processed_articles = []
-        for article in combined_articles:
-            tokens = word_tokenize(article.lower())  # Tokenize and lowercase
-            tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
-            processed_articles.append(tokens)
-
-        # Create Dictionary and Corpus
-        dictionary = Dictionary(processed_articles)
-        corpus = [dictionary.doc2bow(text) for text in processed_articles]
-
-        # Train LDA model
-        try:
-            lda_model = LdaModel(corpus, num_topics=5, id2word=dictionary, passes=15)
-        except Exception as e:
-            self.results_display.append(f"<b>Error during topic modeling:</b> {str(e)}")
-            return
-
-        # Extract topics and assign labels
-        topics = lda_model.print_topics(num_words=5)
-        self.results_display.append("<b>Topics and Labels:</b>")
-        for idx, topic in topics:
-            # Extract keywords from the topic
-            keywords = [word.split('*"')[1].replace('"', '') for word in topic.split(' + ')]
-            label = categorize_topic_dynamic(keywords)  # Map topic to label dynamically
-            self.results_display.append(f"Topic {idx + 1} ({label}): {topic}")
-
-        self.results_display.append("\n<b>Topic analysis and dynamic categorization complete.</b>")
+        # Open dynamic dialog for topic analysis
+        dialog = TopicAnalysisDialog(self.scraped_content, self)
+        dialog.exec_()
 
     def generate_report(self):
         """Placeholder for Generate Report functionality."""
@@ -361,6 +326,99 @@ class ContentDialog(QDialog):
             if source in self.source_displays:
                 self.source_displays[source].setText("\n".join(articles))
 
+class TopicAnalysisDialog(QDialog):
+    def __init__(self, scraped_content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Topic Analysis")
+        self.resize(900, 700)
+
+        # Save scraped content
+        self.scraped_content = scraped_content
+
+        # Create a vertical layout
+        self.layout = QVBoxLayout(self)
+
+        # Dropdown for selecting the news source
+        self.source_dropdown = QComboBox()
+        self.source_dropdown.addItem("All Sources")
+        self.source_dropdown.addItems(self.scraped_content.keys())
+        self.source_dropdown.currentTextChanged.connect(self.update_graph)
+
+        # Add dropdown to layout
+        self.layout.addWidget(QLabel("Select News Source:"))
+        self.layout.addWidget(self.source_dropdown)
+
+        # Placeholder for graph
+        self.figure, self.ax = plt.subplots(figsize=(10, 6))
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+
+        # Initial graph generation
+        self.update_graph()
+
+    def preprocess_articles(self, articles):
+        """Preprocess articles for topic modeling."""
+        stop_words = set(stopwords.words('english'))
+        processed_articles = []
+        for article in articles:
+            tokens = word_tokenize(article.lower())  # Tokenize and lowercase
+            tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+            processed_articles.append(tokens)
+        return processed_articles
+
+    def update_graph(self):
+        """Update the graph dynamically based on the selected news source."""
+        selected_source = self.source_dropdown.currentText()
+
+        # Combine articles based on the user's choice
+        if selected_source == "All Sources":
+            combined_articles = []
+            for articles in self.scraped_content.values():
+                combined_articles.extend(articles)
+        else:
+            combined_articles = self.scraped_content.get(selected_source, [])
+
+        if not combined_articles:
+            self.ax.clear()
+            self.ax.set_title(f"No articles available for {selected_source}")
+            self.canvas.draw()
+            return
+
+        # Preprocess articles
+        processed_articles = self.preprocess_articles(combined_articles)
+
+        # Create Dictionary and Corpus
+        dictionary = Dictionary(processed_articles)
+        corpus = [dictionary.doc2bow(text) for text in processed_articles]
+
+        # Train LDA model
+        try:
+            lda_model = LdaModel(corpus, num_topics=5, id2word=dictionary, passes=15)
+        except Exception as e:
+            self.ax.clear()
+            self.ax.set_title(f"Error during topic modeling: {str(e)}")
+            self.canvas.draw()
+            return
+
+        # Extract topics and assign labels
+        topics = lda_model.show_topics(num_topics=5, num_words=5, formatted=False)
+        labeled_topics = []
+        for idx, topic in topics:
+            keywords = [word for word, _ in topic]
+            label = categorize_topic_dynamic(keywords)  # Map topic to label dynamically
+            weight_sum = sum(weight for _, weight in topic)  # Calculate total weight
+            labeled_topics.append((label, weight_sum, keywords))
+
+        # Update graph with new data
+        self.ax.clear()
+        topic_labels = [label for label, _, _ in labeled_topics]
+        weights = [weight for _, weight, _ in labeled_topics]
+
+        self.ax.barh(topic_labels, weights, align="center")
+        self.ax.set_xlabel("Weight")
+        self.ax.set_title(f"Top Topics for {selected_source}")
+        self.ax.invert_yaxis()  # Higher weights appear at the top
+        self.canvas.draw()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
