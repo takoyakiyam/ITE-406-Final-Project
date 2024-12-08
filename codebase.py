@@ -881,11 +881,11 @@ class VisualizeNetworkDialog(QDialog):
         return G, pos, labels, node_types
 
     def has_significant_word_overlap(self, title1, title2):
-        """Check if two article titles have at least 5 words in common."""
+        """Check if two article titles have at least 4 words in common."""
         words1 = set(title1.lower().split())
         words2 = set(title2.lower().split())
         common_words = words1 & words2
-        return len(common_words) >= 5
+        return len(common_words) >= 4
 
     def truncate_text(self, text, max_length=50):
         """Truncate long text to fit within the graph."""
