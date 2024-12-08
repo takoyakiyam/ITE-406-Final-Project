@@ -12,9 +12,9 @@ from transformers import pipeline
 from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
-    QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem
+    QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem, QProgressBar, QApplication
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
@@ -328,11 +328,17 @@ class MainWindow(QMainWindow):
             self.checkbox_philstar.isChecked(),
             self.checkbox_manilaTimes.isChecked(),
             self.checkbox_rappler.isChecked(),
-            self.checkbox_gma.isChecked()
+            self.checkbox_gma.isChecked(),
+            self.checkbox_cnn.isChecked()
         ]):
             self.results_display.append("<b>Error:</b> No website selected. Please choose a website.")
             return
 
+        # Show the loading dialog
+        loading_dialog = LoadingDialog("Scraping websites...", self)
+        loading_dialog.show()
+        QApplication.processEvents()  # Allow the dialog to update
+        
         self.scraped_content = {}
         websites = [
             ("Fox News", self.checkbox_foxnews.isChecked(), scrape_foxnews),
@@ -345,13 +351,21 @@ class MainWindow(QMainWindow):
 
         self.results_display.append(f"<b>Scraping articles...</b>")
 
-        for name, is_checked, scraper in websites:
-            if is_checked:
-                try:
-                    self.scraped_content[name] = scraper()
-                    self.results_display.append(f"{name}: {len(self.scraped_content[name])} articles scraped.")
-                except Exception as e:
-                    self.results_display.append(f"{name}: Failed to scrape. ({str(e)})")
+        try:
+            for name, is_checked, scraper in websites:
+                if is_checked:
+                    # Update the dialog message for each website
+                    loading_dialog.update_message(f"Scraping {name}...")
+                    QApplication.processEvents()  # Update the dialog
+                    
+                    try:
+                        self.scraped_content[name] = scraper()
+                        self.results_display.append(f"{name}: {len(self.scraped_content[name])} articles scraped.")
+                    except Exception as e:
+                        self.results_display.append(f"{name}: Failed to scrape. ({str(e)})")
+        finally:
+            # Close the loading dialog when scraping is complete
+            loading_dialog.close()
 
         self.results_display.append("\n<b>Scraping complete.</b>")
 
@@ -957,7 +971,28 @@ class ReportPreviewDialog(QDialog):
         dialog = QPrintDialog(printer, self)
         if dialog.exec_() == QPrintDialog.Accepted:
             self.web_view.print(printer)
+            
+class LoadingDialog(QDialog):
+    def __init__(self, message="Loading, please wait...", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Please Wait")
+        self.setModal(True)
+        self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.CustomizeWindowHint)
+        self.resize(300, 100)
+        
+        layout = QVBoxLayout(self)
+        
+        self.label = QLabel(message)
+        self.label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.label)
+        
+        self.progress = QProgressBar(self)
+        self.progress.setRange(0, 0)  # Infinite loading effect
+        layout.addWidget(self.progress)
 
+    def update_message(self, new_message):
+        self.label.setText(new_message)
+        
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
