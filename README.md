@@ -2,6 +2,8 @@
 
 NewsNet is a user-friendly application designed to scrape, analyze, and visualize news articles from multiple sources. With features like dynamic topic categorization, sentiment analysis, and network visualization, NewsNet offers a comprehensive solution for news aggregation and insights.
 
+_note: The scraping methods are extremely inefficient and oversimplified._
+
 ---
 
 ## Features
