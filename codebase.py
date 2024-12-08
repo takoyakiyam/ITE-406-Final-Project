@@ -6,7 +6,7 @@ import time
 import networkx as nx
 import spacy
 import requests
-import numpy as np
+from datetime import datetime
 import matplotlib.pyplot as plt
 from transformers import pipeline
 from bs4 import BeautifulSoup
@@ -456,12 +456,16 @@ class MainWindow(QMainWindow):
             self.results_display.append("<b>Error:</b> No data available to export. Scrape websites first.")
             return
 
+        # Get the current date and time for the default file name
+        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        default_file_name = f"AggregatedNews - {current_time}"
+
         # Open a file dialog for the user to choose the save location
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Export Data",
-            "",
+            default_file_name,  # Set the default file name here
             "JSON Files (*.json);;CSV Files (*.csv)",
             options=options
         )
@@ -491,18 +495,15 @@ class MainWindow(QMainWindow):
             self.results_display.append(f"<b>Error:</b> Failed to export data. ({str(e)})")
 
     def view_aggregated_content(self):
-        """Display aggregated articles."""
-        if not self.scraped_content:
-            self.results_display.append("<b>Error:</b> No content to display. Scrape websites first.")
-            return
+            """Display aggregated articles."""
+            if not self.scraped_content:
+                self.results_display.append("<b>Error:</b> No content to display. Scrape websites first.")
+                return
 
-        dialog = ContentDialog("Aggregated Articles", self.scraped_content, self)
-        dialog.exec_()
+            dialog = AggregatedNews("Aggregated Articles", self.scraped_content, self)
+            dialog.exec_()
 
-from transformers import pipeline
-from PyQt5.QtGui import QFont
-
-class ContentDialog(QDialog):
+class AggregatedNews(QDialog):
     def __init__(self, title, aggregated_content, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
