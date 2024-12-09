@@ -548,13 +548,8 @@ class AggregatedNews(QDialog):
         search_layout = QHBoxLayout()
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("Type to search articles...")
-        self.search_button = QPushButton("🔍")
-        self.search_button.clicked.connect(self.perform_search)
-        self.clear_button = QPushButton("🔄")
-        self.clear_button.clicked.connect(self.clear_search)
+        self.search_field.textChanged.connect(self.update_filters)  # Dynamic search
         search_layout.addWidget(self.search_field)
-        search_layout.addWidget(self.search_button)
-        search_layout.addWidget(self.clear_button)
         self.layout.addLayout(search_layout)
 
         # Sorting Dropdown
@@ -562,7 +557,7 @@ class AggregatedNews(QDialog):
         self.sort_dropdown = QComboBox()
         self.sort_dropdown.addItems(["Sort by Sentiment", "All", "Positive", "Negative"])
         self.sort_dropdown.setFixedSize(150, 25)
-        self.sort_dropdown.currentTextChanged.connect(self.sort_by_sentiment)
+        self.sort_dropdown.currentTextChanged.connect(self.update_filters)  # Dynamic sort
         sort_layout.addWidget(QLabel("Sort:"))
         sort_layout.addWidget(self.sort_dropdown)
         self.layout.addLayout(sort_layout)
@@ -652,20 +647,10 @@ class AggregatedNews(QDialog):
 
             list_widget.addItem(item)
 
-    def sort_by_sentiment(self):
-        """Sort articles by selected sentiment and update all tabs."""
-        self.current_sentiment = self.sort_dropdown.currentText()  # Update global sentiment filter
-        self.refresh_all_tabs()
-
-    def perform_search(self):
-        """Search articles and update the display, respecting the active sentiment filter."""
-        self.current_query = self.search_field.text().strip().lower()  # Update global query
-        self.refresh_all_tabs()
-
-    def clear_search(self):
-        """Clear search and reset all tabs to original content."""
-        self.current_query = ""
-        self.search_field.clear()
+    def update_filters(self):
+        """Update the search query and sentiment filter dynamically."""
+        self.current_query = self.search_field.text().strip().lower()
+        self.current_sentiment = self.sort_dropdown.currentText()
         self.refresh_all_tabs()
 
     def refresh_current_tab(self):
