@@ -540,6 +540,10 @@ class AggregatedNews(QDialog):
         self.sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
         self.sentiment_cache = {}  # Cache to store precomputed sentiment results
 
+        # Store current search query and sentiment filter globally
+        self.current_query = ""
+        self.current_sentiment = "All"
+
         # Search bar
         search_layout = QHBoxLayout()
         self.search_field = QLineEdit()
@@ -574,6 +578,7 @@ class AggregatedNews(QDialog):
 
         # Tab view for content
         self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self.refresh_current_tab)  # Refresh the tab when switching
 
         # Create "All Articles" tab
         self.all_articles_tab = QWidget()
@@ -623,6 +628,13 @@ class AggregatedNews(QDialog):
     def populate_list_widget(self, list_widget, articles):
         """Populate a QListWidget with a list of articles, color-coded by sentiment."""
         list_widget.clear()
+        if not articles:
+            # Add placeholder for no results
+            placeholder_item = QListWidgetItem("No articles match your query.")
+            placeholder_item.setForeground(Qt.gray)
+            list_widget.addItem(placeholder_item)
+            return
+
         for article in articles:
             sentiment = self.analyze_sentiment(article)
             item = QListWidgetItem(article)
@@ -642,35 +654,36 @@ class AggregatedNews(QDialog):
 
     def sort_by_sentiment(self):
         """Sort articles by selected sentiment and update all tabs."""
-        selected_sort = self.sort_dropdown.currentText()
-
-        for tab_index in range(self.tabs.count()):
-            tab_name = self.tabs.tabText(tab_index)
-            if tab_name == "All Articles":
-                articles = self.combined_articles
-                list_widget = self.all_articles_list
-            else:
-                articles = self.aggregated_content.get(tab_name, [])
-                list_widget = self.source_displays.get(tab_name)
-
-            if selected_sort == "All":
-                self.populate_list_widget(list_widget, articles)
-            else:
-                # Filter articles based on sentiment
-                filtered_articles = [
-                    article for article in articles
-                    if self.analyze_sentiment(article) == selected_sort.lower()
-                ]
-                self.populate_list_widget(list_widget, filtered_articles)
+        self.current_sentiment = self.sort_dropdown.currentText()  # Update global sentiment filter
+        self.refresh_all_tabs()
 
     def perform_search(self):
         """Search articles and update the display, respecting the active sentiment filter."""
-        query = self.search_field.text().strip().lower()
-        if not query:
-            return
+        self.current_query = self.search_field.text().strip().lower()  # Update global query
+        self.refresh_all_tabs()
 
-        selected_sort = self.sort_dropdown.currentText()
+    def clear_search(self):
+        """Clear search and reset all tabs to original content."""
+        self.current_query = ""
+        self.search_field.clear()
+        self.refresh_all_tabs()
 
+    def refresh_current_tab(self):
+        """Refresh the currently active tab based on the search query and sentiment filter."""
+        current_tab_index = self.tabs.currentIndex()
+        tab_name = self.tabs.tabText(current_tab_index)
+
+        if tab_name == "All Articles":
+            articles = self.combined_articles
+            list_widget = self.all_articles_list
+        else:
+            articles = self.aggregated_content.get(tab_name, [])
+            list_widget = self.source_displays.get(tab_name)
+
+        self.apply_filters_and_update(list_widget, articles)
+
+    def refresh_all_tabs(self):
+        """Refresh all tabs to reflect the search query and sentiment filter."""
         for tab_index in range(self.tabs.count()):
             tab_name = self.tabs.tabText(tab_index)
             if tab_name == "All Articles":
@@ -680,21 +693,22 @@ class AggregatedNews(QDialog):
                 articles = self.aggregated_content.get(tab_name, [])
                 list_widget = self.source_displays.get(tab_name)
 
-            if selected_sort != "All":
-                articles = [
-                    article for article in articles
-                    if self.analyze_sentiment(article) == selected_sort.lower()
-                ]
+            self.apply_filters_and_update(list_widget, articles)
 
-            # Filter articles by the search query
-            filtered_articles = [article for article in articles if query in article.lower()]
-            self.populate_list_widget(list_widget, filtered_articles)
+    def apply_filters_and_update(self, list_widget, articles):
+        """Apply search and sentiment filters to a given list and update the widget."""
+        # Apply sentiment filter
+        if self.current_sentiment != "All":
+            articles = [
+                article for article in articles
+                if self.analyze_sentiment(article) == self.current_sentiment.lower()
+            ]
 
-    def clear_search(self):
-        """Clear search and reset all tabs to original content."""
-        self.search_field.clear()
-        self.sort_by_sentiment()  # Resets sorting and refreshes all tabs
+        # Apply search query filter
+        if self.current_query:
+            articles = [article for article in articles if self.current_query in article.lower()]
 
+        self.populate_list_widget(list_widget, articles)
 
 class TopicAnalysisDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
