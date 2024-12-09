@@ -29,6 +29,7 @@ import nltk
 nltk.download('punkt')
 nltk.download('stopwords')
 nlp = spacy.load("en_core_web_md")
+summarizer = pipeline("summarization", clean_up_tokenization_spaces=True)
 
 # Load topic labels from a JSON file
 with open("topic_labels.json", "r") as file:
@@ -120,7 +121,7 @@ def scrape_gma():
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Locate the JavaScript block containing the JSON data
-    script_tag = soup.find("script", text=re.compile("GLOBAL_SSR_ROBOT_JUST_IN_JSON"))
+    script_tag = soup.find("script", string=re.compile("GLOBAL_SSR_ROBOT_JUST_IN_JSON"))
     if not script_tag:
         return []
 
