@@ -522,6 +522,10 @@ class MainWindow(QMainWindow):
             dialog = AggregatedNews("Aggregated Articles", self.scraped_content, self)
             dialog.exec_()
 
+from PyQt5.QtWidgets import QComboBox
+
+from PyQt5.QtCore import Qt
+
 class AggregatedNews(QDialog):
     def __init__(self, title, aggregated_content, parent=None):
         super().__init__(parent)
@@ -548,12 +552,21 @@ class AggregatedNews(QDialog):
         search_layout.addWidget(self.clear_button)
         self.layout.addLayout(search_layout)
 
+        # Sorting Dropdown
+        sort_layout = QHBoxLayout()
+        self.sort_dropdown = QComboBox()
+        self.sort_dropdown.addItems(["Sort by Sentiment", "All", "Positive", "Negative"])
+        self.sort_dropdown.setFixedSize(150, 25) 
+        self.sort_dropdown.currentTextChanged.connect(self.sort_by_sentiment)
+        sort_layout.addWidget(QLabel("Sort:"))
+        sort_layout.addWidget(self.sort_dropdown)
+        self.layout.addLayout(sort_layout)
+
         # Description for color coding
         description_label = QLabel(
             "<b>Color Coding:</b> "
             "<span style='color: #006400;'>Green</span>: Positive, "
-            "<span style='color: red;'>Red</span>: Negative, "
-            "<span style='color: gray;'>Gray</span>: Neutral"
+            "<span style='color: red;'>Red</span>: Negative"
         )
         description_label.setWordWrap(True)
         self.layout.addWidget(description_label)
@@ -600,7 +613,6 @@ class AggregatedNews(QDialog):
             return "positive"
         elif label == "NEGATIVE":
             return "negative"
-        return "neutral"
 
     def populate_list_widget(self, list_widget, articles):
         """Populate a QListWidget with a list of articles, color-code them, and make text bold."""
@@ -608,14 +620,12 @@ class AggregatedNews(QDialog):
         for article in articles:
             sentiment = self.analyze_sentiment(article)
             item = QListWidgetItem(article)
-            
+
             # Set text color based on sentiment
             if sentiment == "positive":
                 item.setForeground(Qt.darkGreen)
             elif sentiment == "negative":
                 item.setForeground(Qt.red)
-            else:
-                item.setForeground(Qt.gray)
 
             # Make text bold
             font = QFont()
@@ -624,31 +634,68 @@ class AggregatedNews(QDialog):
 
             list_widget.addItem(item)
 
+    def sort_by_sentiment(self):
+        """Sort articles by selected sentiment for the currently active tab."""
+        selected_sort = self.sort_dropdown.currentText()
+
+        # Get the currently active tab
+        current_tab_index = self.tabs.currentIndex()
+        current_tab_name = self.tabs.tabText(current_tab_index)
+
+        if current_tab_name == "All Articles":
+            articles = self.combined_articles
+            list_widget = self.all_articles_list
+        else:
+            articles = self.aggregated_content.get(current_tab_name, [])
+            list_widget = self.source_displays.get(current_tab_name)
+
+        if not list_widget:
+            return
+
+        if selected_sort == "All":
+            self.populate_list_widget(list_widget, articles)
+        else:
+            # Filter articles based on sentiment
+            filtered_articles = [
+                article for article in articles
+                if self.analyze_sentiment(article) == selected_sort.lower()
+            ]
+            self.populate_list_widget(list_widget, filtered_articles)
+
     def perform_search(self):
-        """Search articles and update the display."""
+        """Search articles and update the display, respecting the active sentiment filter."""
         query = self.search_field.text().strip().lower()
         if not query:
             return
 
-        # Determine current tab
+        # Get the currently active tab
         current_tab_index = self.tabs.currentIndex()
         current_tab_name = self.tabs.tabText(current_tab_index)
 
-        no_results_message = "No articles matching the search query."
-
         if current_tab_name == "All Articles":
-            # Filter all articles
-            filtered = [article for article in self.combined_articles if query in article.lower()]
-            self.populate_list_widget(self.all_articles_list, filtered if filtered else [no_results_message])
+            articles = self.combined_articles
+            list_widget = self.all_articles_list
         else:
-            # Filter articles for the specific source
-            source_articles = self.aggregated_content.get(current_tab_name, [])
-            filtered = [article for article in source_articles if query in article.lower()]
-            if current_tab_name in self.source_displays:
-                self.populate_list_widget(
-                    self.source_displays[current_tab_name],
-                    filtered if filtered else [no_results_message]
-                )
+            articles = self.aggregated_content.get(current_tab_name, [])
+            list_widget = self.source_displays.get(current_tab_name)
+
+        if not list_widget:
+            return
+
+        # Respect the active sentiment filter
+        selected_sort = self.sort_dropdown.currentText()
+        if selected_sort != "All":
+            articles = [
+                article for article in articles
+                if self.analyze_sentiment(article) == selected_sort.lower()
+            ]
+
+        # Filter articles by the search query
+        filtered_articles = [article for article in articles if query in article.lower()]
+
+        # Update the display
+        no_results_message = "No articles matching the search query."
+        self.populate_list_widget(list_widget, filtered_articles if filtered_articles else [no_results_message])
 
     def clear_search(self):
         """Clear search and reset all tabs to original content."""
@@ -661,6 +708,7 @@ class AggregatedNews(QDialog):
         for source, articles in self.aggregated_content.items():
             if source in self.source_displays:
                 self.populate_list_widget(self.source_displays[source], articles)
+
 
 
 class TopicAnalysisDialog(QDialog):
