@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QCheckBox, QLabel, QDialog,
     QLineEdit, QTabWidget, QGroupBox, QComboBox, QListWidget, QFileDialog, QListWidgetItem, QProgressBar, QApplication
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
@@ -34,6 +34,15 @@ summarizer = pipeline("summarization", clean_up_tokenization_spaces=True)
 # Load topic labels from a JSON file
 with open("topic_labels.json", "r") as file:
     TOPIC_LABELS = json.load(file)
+     
+SOURCE_COLORS = {
+            "Fox News": "#FF9999",
+            "Philstar": "#99CCFF",
+            "Manila Times": "#99FF99",
+            "Rappler": "#FFCC99",
+            "GMA News": "#FF99FF",
+            "CNN News": "#CC9966"
+        }
 
 def categorize_topic_dynamic(keywords):
         """Categorize a topic using semantic similarity with spaCy."""
@@ -557,6 +566,7 @@ class AggregatedNews(QDialog):
         self.sort_dropdown = QComboBox()
         self.sort_dropdown.addItems(["Sort by Sentiment", "All", "Positive", "Negative"])
         self.sort_dropdown.setFixedSize(150, 25)
+        self.sort_dropdown.model().item(0).setEnabled(False)
         self.sort_dropdown.currentTextChanged.connect(self.update_filters)  # Dynamic sort
         sort_layout.addWidget(QLabel("Sort:"))
         sort_layout.addWidget(self.sort_dropdown)
@@ -748,7 +758,7 @@ class TopicAnalysisDialog(QDialog):
         return processed_articles
 
     def update_graph(self):
-        """Update the graph dynamically based on the selected news source."""
+        """Update the bar graph dynamically based on the selected news source."""
         selected_source = self.source_dropdown.currentText()
 
         # Combine articles based on the user's choice
@@ -756,8 +766,10 @@ class TopicAnalysisDialog(QDialog):
             combined_articles = []
             for articles in self.scraped_content.values():
                 combined_articles.extend(articles)
+            bar_color = "#CCCCCC"  # Default color for "All Sources"
         else:
             combined_articles = self.scraped_content.get(selected_source, [])
+            bar_color = SOURCE_COLORS.get(selected_source, "#CCCCCC")  # Use source-specific color
 
         if not combined_articles:
             self.ax.clear()
@@ -765,14 +777,11 @@ class TopicAnalysisDialog(QDialog):
             self.canvas.draw()
             return
 
-        # Preprocess articles
+        # Preprocess articles and perform topic modeling
         processed_articles = self.preprocess_articles(combined_articles)
-
-        # Create Dictionary and Corpus
         dictionary = Dictionary(processed_articles)
         corpus = [dictionary.doc2bow(text) for text in processed_articles]
 
-        # Train LDA model
         try:
             lda_model = LdaModel(corpus, num_topics=5, id2word=dictionary, passes=15)
         except Exception as e:
@@ -781,48 +790,24 @@ class TopicAnalysisDialog(QDialog):
             self.canvas.draw()
             return
 
-        # Extract topics and assign labels
         topics = lda_model.show_topics(num_topics=5, num_words=5, formatted=False)
         labeled_topics = []
         for idx, topic in topics:
             keywords = [word for word, _ in topic]
-            label = categorize_topic_dynamic(keywords)  # Map topic to label dynamically
-            weight_sum = sum(weight for _, weight in topic)  # Calculate total weight
+            label = categorize_topic_dynamic(keywords)
+            weight_sum = sum(weight for _, weight in topic)
             labeled_topics.append((label, weight_sum, keywords))
 
-        # Update graph with new data
         self.ax.clear()
         topic_labels = [label for label, _, _ in labeled_topics]
         weights = [weight for _, weight, _ in labeled_topics]
 
-        self.ax.barh(topic_labels, weights, align="center")
+        # Draw the bar graph with the source-specific color
+        self.ax.barh(topic_labels, weights, color=bar_color, align="center")
         self.ax.set_xlabel("Weight")
         self.ax.set_title(f"Top Topics for {selected_source}")
-        self.ax.invert_yaxis()  # Higher weights appear at the top
+        self.ax.invert_yaxis()
         self.canvas.draw()
-
-class VisualizeNetworkDialog(QDialog):
-    def __init__(self, scraped_content, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Visualize Network")
-        self.resize(900, 900)
-
-        # Save scraped content
-        self.scraped_content = scraped_content
-
-        # Main layout for the dialog
-        self.layout = QVBoxLayout(self)
-
-        # Placeholder for the network graph
-        self.figure, self.ax = plt.subplots(figsize=(10, 8))
-        self.canvas = FigureCanvas(self.figure)
-        self.layout.addWidget(self.canvas)
-
-        # Generate and display the network graph
-        self.G, self.pos, self.labels, self.node_types = self.generate_network_graph()
-
-        # Connect hover event for article nodes
-        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
 
 class VisualizeNetworkDialog(QDialog):
     def __init__(self, scraped_content, parent=None):
