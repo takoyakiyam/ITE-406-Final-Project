@@ -154,7 +154,6 @@ def scrape_gma():
 
     return todays_articles
 
-
 def scrape_cnn():
     url = "https://www.cnn.com/"
     response = requests.get(url, timeout=10)
@@ -530,10 +529,6 @@ class MainWindow(QMainWindow):
 
             dialog = AggregatedNews("Aggregated Articles", self.scraped_content, self)
             dialog.exec_()
-
-from PyQt5.QtWidgets import QComboBox
-
-from PyQt5.QtCore import Qt
 
 class AggregatedNews(QDialog):
     def __init__(self, title, aggregated_content, parent=None):
